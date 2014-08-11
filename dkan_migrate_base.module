@@ -1,0 +1,13 @@
+<?php
+
+/**
+ * @file
+ * Required module file.
+ */
+
+/**
+ * Deregisters DKAN migrations.
+ */
+function dkan_migrate_base_migratesions_disable() {
+  Migration::deregisterMigration('ckan');
+}
