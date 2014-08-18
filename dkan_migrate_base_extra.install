@@ -1,0 +1,12 @@
+<?php
+/**
+ * @file
+ * Install file for DKAN base migration extra.
+ */
+
+/**
+ * Implements hook_disable().
+ */
+function dkan_migrate_base_extra_disable() {
+  dkan_migrate_base_extra_migrations_disable();
+}

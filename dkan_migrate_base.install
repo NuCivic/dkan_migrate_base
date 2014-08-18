@@ -8,5 +8,5 @@
  * Implements hook_disable().
  */
 function dkan_migrate_base_disable() {
-  dkan_migrate_base_migratesions_disable();
+  dkan_migrate_base_migrations_disable();
 }

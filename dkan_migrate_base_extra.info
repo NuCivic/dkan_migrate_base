@@ -1,0 +1,7 @@
+name = "DKAN Migrate Base Extra"
+description = "Extends DKAN migration base. Includes individual migrations for resource, groups, and other entities."
+package = "DKAN"
+core = 7.x
+dependencies[] = migrate (>7.x-2.6-rc1+56-dev)
+dependencies[] = dkan_migrate_base
+files[] = dkan_migrate_base_extra.migrate.inc
