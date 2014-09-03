@@ -202,15 +202,27 @@ class MigrateCkanDatasetBase extends Migration {
       }
       else {
         $new_user = array(
-          'uuid' => $row->creator_user_id,
+          'uuid' => $creator_user_id,
         );
         // Get User name from CKAN API.
-        $response = drupal_http_request($this->endpoint . 'user_show?id=' .  $row->creator_user_id);
+        $response = drupal_http_request($this->endpoint . 'user_show?id=' .  $creator_user_id);
         $json = $response->data;
         $data = drupal_json_decode($json);
-        $new_user['name'] = $data['result']['name'];
-        $account = user_save(NULL, $new_user);
-        return $account->uid;
+        if ($name = $data['result']['name']) {
+          $current_uid = db_query("SELECT uid from {users} WHERE name = :name", array(":name" => $name))->fetchField();
+          if ($current_uid) {
+            $account = user_load($current_uid);
+            return $account->uid;
+          }
+          else {
+            $new_user['name'] = $name;
+            $account = user_save(NULL, $new_user);
+            return $account->uid;
+          }
+        }
+        else {
+          return 1;
+        }
       }
     }
   }
@@ -297,7 +309,7 @@ class CKANItemJSON extends MigrateItemJSON {
       $migration = Migration::currentMigration();
       $message = t('Loading of !objecturl failed:', array('!objecturl' => $item_url));
       $migration->getMap()->saveMessage(
-        array($id), $message, MigrationBase::MESSAGE_ERROR);
+      array($id), $message, MigrationBase::MESSAGE_ERROR);
       return NULL;
     }
   }
