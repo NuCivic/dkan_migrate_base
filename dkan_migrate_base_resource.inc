@@ -1,26 +1,4 @@
 <?php
-
-/**
- * @file
- * Migration file.
- */
-
-/**
- * Implements hook_migrate_api().
- */
-function dkan_migrate_base_extra_migrate_api() {
-  $api = array(
-    'api' => 2,
-    'migrations' => array(
-      'ckan_resource_base' => array(
-        'class_name' => 'MigrateCkanResourceBase',
-        'group_name' => 'dkan',
-      ),
-    ),
-  );
-  return $api;
-}
-
 /**
  * A dynamic migration that is reused for each source CSV file.
  */
@@ -30,6 +8,10 @@ class MigrateCkanResourceBase extends Migration {
    */
   public function __construct($arguments) {
     parent::__construct($arguments);
+    $this->dependencies = array(
+      'ckan_group_base',
+    );
+
     $fields = array(
       "name" => "Name",
       "id" => "UUID",
@@ -50,9 +32,8 @@ class MigrateCkanResourceBase extends Migration {
 
     // CKAN doesn't have a resource_list endpoint so this function creates one.
     $file_name = 'public://ckan-migrate-resource_list';
-    dkan_migrate_base_create_resource_list($this->endpoint, $file_name);
+    dkan_migrate_base_create_resource_list($this->endpoint, $file_name, TRUE);
     $json_file = file_create_url($file_name);
-
     $item_url = $this->endpoint . 'resource_show?id=:id';
     $this->source = new MigrateSourceList(new CKANListJSON($json_file),
           new CKANItemJSON($item_url, $fields), $fields);
@@ -70,7 +51,7 @@ class MigrateCkanResourceBase extends Migration {
         );
 
     $this->destination = new MigrateDestinationNode('resource');
-
+    $this->addFieldMapping('id', 'uuid');
     $this->addFieldMapping('title', 'name');
     $this->addFieldMapping('created', 'created');
     $this->addFieldMapping('body', 'description');
@@ -78,6 +59,8 @@ class MigrateCkanResourceBase extends Migration {
     $this->addFieldMapping('field_upload', 'file');
     $this->addFieldMapping('field_link_remote_file', 'file_remote_link');
     $this->addFieldMapping('field_link_api', 'link');
+    $this->addFieldMapping('og_group_ref', 'group_ids');
+    $this->addFieldMapping('changed', 'last_modified');
   }
 
   /**
@@ -90,6 +73,8 @@ class MigrateCkanResourceBase extends Migration {
 
     // Get unix timestamp values for dates.
     $row->created = strtotime($row->created);
+    $row->created = strtotime($row->last_modified);
+    $row->group_ids = array($row->resource_group_id);
     $row->last_modified = strtotime($row->last_modified);
 
     $row->name = $row->name ? $row->name : $row->description;
