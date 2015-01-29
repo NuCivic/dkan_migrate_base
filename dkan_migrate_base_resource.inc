@@ -1,8 +1,14 @@
 <?php
+
+/**
+ * @file
+ * Migration Class for Resources
+ */
+
 /**
  * A dynamic migration that is reused for each source CSV file.
  */
-class MigrateCkanResourceBase extends Migration {
+class MigrateCkanResourceBase extends MigrateCkanBase {
   /**
    * Here we go.
    */
@@ -27,8 +33,6 @@ class MigrateCkanResourceBase extends Migration {
       "uid" => "User ID",
       "file" => "file",
     );
-
-    $this->endpoint = 'http://demo.ckan.org/api/3/action/';
 
     // CKAN doesn't have a resource_list endpoint so this function creates one.
     $file_name = 'public://ckan-migrate-resource_list';
@@ -70,7 +74,6 @@ class MigrateCkanResourceBase extends Migration {
     // TODO:
     // + Find way to get user name for creator of resource
     // + Improve preview for files stuck as links.
-
     // Get unix timestamp values for dates.
     $row->created = strtotime($row->created);
     $row->created = strtotime($row->last_modified);
