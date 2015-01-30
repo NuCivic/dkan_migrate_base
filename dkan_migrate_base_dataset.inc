@@ -1,9 +1,14 @@
 <?php
 
 /**
+ * @file
+ * Migration Class for Datasets
+ */
+
+/**
  * Migrate CKAN dataset
  */
-class MigrateCkanDatasetBase extends Migration {
+class MigrateCkanDatasetBase extends MigrateCkanBase {
   /**
    * Here we go.
    */
@@ -15,10 +20,12 @@ class MigrateCkanDatasetBase extends Migration {
       'ckan_resource_base',
     );
 
-    $this->endpoint = 'http://demo.ckan.org/api/3/action/';
-    $json_file = $this->endpoint . 'package_list';
-    $item_url = $this->endpoint . 'package_show?id=:id';
-    $this->source = new MigrateSourceList(new CKANListJSON($json_file),
+    $list_url = isset($arguments['list_url']) ? $arguments['list_url'] : 'package_list';
+    $list_url = $this->endpoint . $list_url;
+    $item_url = isset($arguments['item_url']) ? $arguments['item_url'] : 'package_show?id=:id';
+    $item_url = $this->endpoint . $item_url;
+
+    $this->source = new MigrateSourceList(new CKANListJSON($list_url),
           new CKANItemJSON($item_url, $fields), $fields);
     $this->map = new MigrateSQLMap(
             $this->machineName,

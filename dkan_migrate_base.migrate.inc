@@ -2,7 +2,7 @@
 
 /**
  * @file
- * Migration file.
+ * Migration file for dkan_migrate_base.
  */
 
 /**
@@ -125,4 +125,12 @@ class CKANItemJSON extends MigrateItemJSON {
   }
 }
 
-
+abstract class MigrateCkanBase extends Migration {
+  /**
+   * Here we go.
+   */
+  public function __construct($arguments) {
+    $this->endpoint = isset($arguments['endpoint']) ? $arguments['endpoint'] : 'http://demo.ckan.org/api/3/action/';
+    parent::__construct($arguments);
+  }
+}

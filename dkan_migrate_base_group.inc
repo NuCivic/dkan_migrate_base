@@ -1,13 +1,20 @@
 <?php
 
 /**
+ * @file
+ * Migration Class for Groups
+ */
+
+/**
  * Migrate CKAN group
  */
-class MigrateCkanGroupBase extends Migration {
+class MigrateCkanGroupBase extends MigrateCkanBase {
+  /**
+   * Here we go.
+   */
   public function __construct($arguments) {
     parent::__construct($arguments);
     $fields = $this->getCkanGroupFields();
-    $this->endpoint = 'http://demo.ckan.org/api/3/action/';
     $json_file = $this->endpoint . 'group_list';
     $item_url = $this->endpoint . 'group_show?id=:id';
     $this->source = new MigrateSourceList(new CKANListJSON($json_file),
@@ -32,6 +39,7 @@ class MigrateCkanGroupBase extends Migration {
     $this->addFieldMapping('body', 'description');
     $this->addFieldMapping('created', 'created');
   }
+
   /**
    * Creates list of fields for CKAN Dataset.
    */
