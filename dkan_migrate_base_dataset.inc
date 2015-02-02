@@ -109,12 +109,18 @@ class MigrateCkanDatasetBase extends MigrateCkanBase {
     $row->name = 'dataset/' . $row->name;
     $row->resource_ids = array();
 
-    foreach ($row->resources as $resource) {
-      $row->resource_ids[] = $this->getResourceId($resource->id);
+    if (isset($row->resources)) {
+      foreach ($row->resources as $resource) {
+        $row->resource_ids[] = $this->getResourceId($resource->id);
+      }
     }
 
-    foreach ($row->tags as $tag) {
-      $row->tag_names[] = $tag->name;
+    $tags = taxonomy_vocabulary_machine_name_load('tags');
+    if (isset($row->tags)) {
+      foreach ($row->tags as $tag) {
+        $this->createTax($tag->name, 'tags', $tags->vid);
+        $row->tag_names[] = $tag->name;
+      }
     }
 
     if (isset($row->groups)) {
@@ -136,8 +142,8 @@ class MigrateCkanDatasetBase extends MigrateCkanBase {
           $row->spatial = $extra->value;
         }
         else {
-          $row->field_additional_info_key = $extra->key;
-          $row->field_additional_info_value = $extra->value;
+          $row->field_additional_info_key[] = $extra->key;
+          $row->field_additional_info_value[] = $extra->value;
         }
       }
     }

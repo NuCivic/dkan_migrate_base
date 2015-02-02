@@ -1,0 +1,60 @@
+<?php
+
+/**
+ * @file
+ * DKAN Examples file.
+ */
+
+/**
+ * Implements hook_migrate_api().
+ */
+function dkan_migrate_base_example_migrate_api() {
+  $api = array(
+    // Migrate API, not CKAN's of course.
+    'api' => 2,
+    'groups' => array(
+      'dkan_migrate_base_example' => array(
+        'title' => t('DKAN Examples'),
+      ),
+    ),
+    'migrations' => array(
+      'ckan_dataset_migrate_base_example_bermuda' => array(
+        'class_name' => 'MigrateCkanDatasetExample',
+        'group_name' => 'dkan_migrate_base_example',
+        'title' => t('DKAN Demo  Datasets'),
+      ),
+      'ckan_dataset_migrate_base_example_bermuda_resources' => array(
+        'class_name' => 'MigrateCkanResourcesExample',
+        'group_name' => 'dkan_migrate_base_example',
+        'title' => t('DKAN Demo  Resources'),
+      ),
+    ),
+  );
+  return $api;
+}
+
+class MigrateCkanDatasetExample extends MigrateCkanDatasetBase {
+  /**
+   * Add endpoint.
+   */
+  public function __construct($arguments) {
+    $arguments['endpoint'] = 'http://example.com/api/3/action/';
+    parent::__construct($arguments);
+  }
+}
+class MigrateCkanResourcesExample extends MigrateCkanResourceBase {
+  /**
+   * Add endpoint.
+   */
+  public function __construct($arguments) {
+    $arguments['endpoint'] = 'http://example.com/api/3/action/';
+    parent::__construct($arguments);
+  }
+}
+
+/**
+ * Deregisters DKAN example migrations.
+ */
+function dkan_migrate_base_example_migrations_disable() {
+  Migration::deregisterMigration('ckan_dataset_migrate_base_example_bermuda');
+}
