@@ -14,8 +14,9 @@ class MigrateCkanResourceBase extends MigrateCkanBase {
    */
   public function __construct($arguments) {
     parent::__construct($arguments);
-    $this->dependencies = array(
-      'ckan_group_base',
+
+    $this->highwaterField = array(
+      'name' => 'revision_timestamp',
     );
 
     $fields = array(
@@ -34,7 +35,7 @@ class MigrateCkanResourceBase extends MigrateCkanBase {
       "file" => "file",
     );
 
-    $file_name = 'public://ckan-migrate-resource_list';
+    $file_name = 'public://ckan-migrate-resource_list_' . get_class($this);
     if (!file_exists($file_name)) {
       drupal_set_message('resource_show created');
       // CKAN doesn't have a resource_list endpoint. This function creates one.
@@ -93,12 +94,17 @@ class MigrateCkanResourceBase extends MigrateCkanBase {
     // Tax terms in Drupal are case sensitive. It is better to have a single
     // 'html' term instead of 'html' and 'HTML'.
     // TODO: move to hook_node_update in dkan_dataset.
+    $format = taxonomy_vocabulary_machine_name_load('format');
     $row->format = strtolower($row->format);
-    $this->createFormat($row->format);
+    $this->createTax($row->format, 'format', $format->vid);
 
     // Decide which of DKAN's three fields is best for resource file.
-    if ($row->url_type == 'upload') {
-      $row->file = $row->url;
+    if ($row->url_type == 'upload' || $row->resource_type == 'file.upload' || $row->resource_type == 'file') {
+      $name = explode('/', $row->url);
+      $name = $name[count($name) - 1];
+      $uri = 'public://' . $name;
+      $file = $this->downloadExternalFile($row->url, $uri);
+      $row->file = $file['fid'];
     }
     else {
       // CKAN API doesn't make it clear if file is link to API or just file.
@@ -119,17 +125,5 @@ class MigrateCkanResourceBase extends MigrateCkanBase {
   public function prepare($node, stdClass $row) {
     // UUID doesn't show up as a field so had to do this.
     $node->uuid = $row->id;
-  }
-
-  /**
-   * Looks up format if exists, if not creates it.
-   */
-  public function createFormat($name) {
-    if (!taxonomy_get_term_by_name($name, 'format')) {
-      $new_term = new stdClass();
-      $new_term->name = $name;
-      $new_term->vid = 1;
-      taxonomy_term_save($new_term);
-    }
   }
 }
