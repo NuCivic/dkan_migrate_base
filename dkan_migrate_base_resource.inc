@@ -34,11 +34,20 @@ class MigrateCkanResourceBase extends MigrateCkanBase {
       "file" => "file",
     );
 
-    // CKAN doesn't have a resource_list endpoint so this function creates one.
     $file_name = 'public://ckan-migrate-resource_list';
-    dkan_migrate_base_create_resource_list($this->endpoint, $file_name, TRUE);
+    if (!file_exists($file_name)) {
+      drupal_set_message('resource_show created');
+      // CKAN doesn't have a resource_list endpoint. This function creates one.
+      dkan_migrate_base_create_resource_list($this->endpoint, $file_name, TRUE);
+      variable_set('dkan_migrate_base_ckan-migrate-resource_list', date('r', time()));
+    }
+    else {
+      $date = variable_get('dkan_resource_list_' . get_class($this), t('unknown'));
+      drupal_set_message(t('ckan-migrate-resource_list file downloaded locally. Last updated %date.', array('%date' => $date)));
+    }
     $json_file = file_create_url($file_name);
     $item_url = $this->endpoint . 'resource_show?id=:id';
+
     $this->source = new MigrateSourceList(new CKANListJSON($json_file),
           new CKANItemJSON($item_url, $fields), $fields);
     $this->map = new MigrateSQLMap(

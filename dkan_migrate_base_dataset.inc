@@ -15,10 +15,6 @@ class MigrateCkanDatasetBase extends MigrateCkanBase {
   public function __construct($arguments) {
     parent::__construct($arguments);
     $fields = $this->getCkanDatasetFields();
-    $this->dependencies = array(
-      'ckan_group_base',
-      'ckan_resource_base',
-    );
 
     $list_url = isset($arguments['list_url']) ? $arguments['list_url'] : 'package_list';
     $list_url = $this->endpoint . $list_url;
@@ -121,24 +117,28 @@ class MigrateCkanDatasetBase extends MigrateCkanBase {
       $row->tag_names[] = $tag->name;
     }
 
-    foreach ($row->groups as $group) {
-      $row->group_ids[] = $this->getGroupId($group->id);
+    if (isset($row->groups)) {
+      foreach ($row->groups as $group) {
+        $row->group_ids[] = $this->getGroupId($group->id);
+      }
     }
 
     // Get unix timestamp values for dates.
     $row->metadata_created = strtotime($row->metadata_created);
     $row->metadata_modified = strtotime($row->metadata_modified);
     $row->spatialText = NULL;
-    foreach ($row->extras as $extra) {
-      if ($extra->key == 'spatial-text') {
-        $row->spatialText = $extra->value;
-      }
-      elseif ($extra->key == 'spatial') {
-        $row->spatial = $extra->value;
-      }
-      else {
-        $row->field_additional_info_key = $extra->key;
-        $row->field_additional_info_value = $extra->value;
+    if (isset($row->extras)) {
+      foreach ($row->extras as $extra) {
+        if ($extra->key == 'spatial-text') {
+          $row->spatialText = $extra->value;
+        }
+        elseif ($extra->key == 'spatial') {
+          $row->spatial = $extra->value;
+        }
+        else {
+          $row->field_additional_info_key = $extra->key;
+          $row->field_additional_info_value = $extra->value;
+        }
       }
     }
   }

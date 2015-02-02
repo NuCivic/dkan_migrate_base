@@ -110,19 +110,24 @@ class CKANItemJSON extends MigrateItemJSON {
    */
   public function getItem($id) {
     $item_url = $this->constructItemUrl($id);
-    // Get the JSON object at the specified URL.
-    $json = $this->loadJSONUrl($item_url);
-    if ($json && isset($json->result)) {
-      return $json->result;
+    if (filter_var($item_url, FILTER_VALIDATE_URL)) {
+      // Get the JSON object at the specified URL.
+      $json = $this->loadJSONUrl($item_url);
+      if ($json && isset($json->result)) {
+        return $json->result;
+      }
     }
     else {
-      $migration = Migration::currentMigration();
-      $message = t('Loading of !objecturl failed:', array('!objecturl' => $item_url));
-      $migration->getMap()->saveMessage(
-      array($id), $message, MigrationBase::MESSAGE_ERROR);
-      return NULL;
+      $json = json_decode(file_get_contents($item_url));
+      return $json->result;
     }
+    $migration = Migration::currentMigration();
+    $message = t('Loading of !objecturl failed:', array('!objecturl' => $item_url));
+    $migration->getMap()->saveMessage(
+    array($id), $message, MigrationBase::MESSAGE_ERROR);
+    return NULL;
   }
+
 }
 
 abstract class MigrateCkanBase extends Migration {
