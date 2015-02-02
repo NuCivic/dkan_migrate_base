@@ -15,6 +15,10 @@ class MigrateCkanResourceBase extends MigrateCkanBase {
   public function __construct($arguments) {
     parent::__construct($arguments);
 
+    $this->highwaterField = array(
+      'name' => 'revision_timestamp',
+    );
+
     $fields = array(
       "name" => "Name",
       "id" => "UUID",

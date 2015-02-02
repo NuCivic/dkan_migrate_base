@@ -21,6 +21,10 @@ class MigrateCkanDatasetBase extends MigrateCkanBase {
     $item_url = isset($arguments['item_url']) ? $arguments['item_url'] : 'package_show?id=:id';
     $item_url = $this->endpoint . $item_url;
 
+    $this->highwaterField = array(
+      'name' => 'revision_timestamp',
+    );
+
     $this->source = new MigrateSourceList(new CKANListJSON($list_url),
           new CKANItemJSON($item_url, $fields), $fields);
     $this->map = new MigrateSQLMap(
