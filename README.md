@@ -15,8 +15,12 @@ Once setup, migrations can be run through the user interface:
 
 through the command line, or run periodically.
 
+### Example module
 
-TO-DO:
-* finish base node fields
-* add tags, groups
-* document adding endpoints and fields
+We have provided an example module in this repo. To create a custom migration just create a module that inherits the Resource and Dataset classes and puts in the endpoint for your CKAN instance: https://github.com/NuCivic/dkan_migrate_base/blob/master/modules/dkan_migrate_base_example/dkan_migrate_base_example.module#L41
+
+### Periodic Migrations
+After the initial time the migration is run it will check each dataset and resource from the CKAN instance and only update items that have changed in CKAN.
+
+### Documentation
+We are working on improving this documentation. Please let us know if you have any questions in the mean time.
