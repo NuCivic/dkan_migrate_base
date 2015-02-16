@@ -1,4 +1,4 @@
-DKAN Migrate Base
+DKAN "Harvester" using Migrate module
 =================
 This provides base classes for common DKAN migrations (ie imports or harvests).
 
