@@ -44,16 +44,17 @@ class MigrateCkanResourceBase extends MigrateCkanBase {
     if ($list_url == 'resource_list') {
       $file_name = 'public://ckan-migrate-resource_list_' . get_class($this);
       if (!file_exists($file_name)) {
-        drupal_set_message('resource_show created');
+        drupal_set_message('ID list resource_show downloaded locally as %filename', array('%filename' => $filename));
         // CKAN doesn't have a resource_list endpoint. This function fakes it.
         dkan_migrate_base_create_resource_list($this->endpoint, $file_name, TRUE);
-        variable_set('dkan_migrate_base_ckan-migrate-resource_list', date('r', time()));
+        variable_set('dkan_resource_list_' . get_class($this), date('r', time()));
       }
       else {
         $date = variable_get('dkan_resource_list_' . get_class($this), t('unknown'));
-        drupal_set_message(t('ckan-migrate-resource_list file downloaded locally. Last updated %date.', array('%date' => $date)));
+        drupal_set_message(t('CKAN Resources ID file for %migration migration downloaded locally. Last updated %date.', array('%date' => $date, '%migration' => get_class($this))));
       }
       $list_url = file_create_url($file_name);
+      $list_url = $file_name;
     }
 
     // Add endpoint for local file.
@@ -108,7 +109,7 @@ class MigrateCkanResourceBase extends MigrateCkanBase {
     // + Improve preview for files stuck as links.
     $row->created = $this->StringToTime($row->created);
     $row->created = $this->StringToTime($row->last_modified);
-    $row->group_ids = array($row->resource_group_id);
+    $row->group_ids = isset($row->resource_group_id) ? array($row->resource_group_id) : '';
     $row->last_modified = $this->StringToTime($row->last_modified);
 
     $row->name = $row->name ? $row->name : $row->description;
@@ -143,7 +144,7 @@ class MigrateCkanResourceBase extends MigrateCkanBase {
   /**
    * Implements prepare.
    */
-  public function prepare($node, stdClass $row) {
+  public function prepare($node, $row) {
     // UUID doesn't show up as a field so had to do this.
     $node->uuid = $row->id;
     $row->format = isset($row->format) && $row->format ? $row->format : 'data';

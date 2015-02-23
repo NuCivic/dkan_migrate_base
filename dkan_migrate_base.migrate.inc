@@ -62,15 +62,17 @@ class CKANListJSON extends MigrateListJSON {
     $ids = array();
     $datasets = 0;
     $total = $this->page + $this->offset;
-    foreach ($data['result'] as $item) {
-      if ($datasets < $this->offset) {
+    if (isset($data['result'])) {
+      foreach ($data['result'] as $item) {
+        if ($datasets < $this->offset) {
+          $datasets++;
+          continue;
+        }
+        $ids[] = $item;
         $datasets++;
-        continue;
-      }
-      $ids[] = $item;
-      $datasets++;
-      if ($total && $datasets >= $total) {
-        break;
+        if ($total && $datasets >= $total) {
+          break;
+        }
       }
     }
     return $ids;
@@ -91,12 +93,22 @@ class CKANListJSON extends MigrateListJSON {
     if (substr($this->listUrl, 0, 6) == 'public') {
       $json = file_get_contents($this->listUrl);
     }
+    elseif (!substr($this->listUrl, 0, 7) != 'http://') {
+      $json = file_get_contents($this->listUrl);
+    }
     else {
       $response = drupal_http_request($this->listUrl, $this->httpOptions);
-      $json = $response->data;
+      if (isset($response->error)) {
+        watchdog(
+          'dkan_migrate_base', 'See ' . __FUNCTION__ . '() Error: ' . check_plain($response->error), NULL, WATCHDOG_ERROR
+        );
+      }
+      else {
+        $json = $response->data;
+      }
     }
     migrate_instrument_stop("Retrieve $this->listUrl");
-    if ($json) {
+    if (isset($json)) {
       $data = drupal_json_decode($json);
       if ($data) {
         return $this->getIDsFromJSON($data);
@@ -115,21 +127,31 @@ class CKANListJSON extends MigrateListJSON {
       return count($this->ids);
     }
     $count = 0;
-    if (empty($this->httpOptions)) {
+    if (substr($this->listUrl, 0, 6) == 'public') {
+      $json = file_get_contents($this->listUrl);
+    }
+    elseif (substr($this->listUrl, 0, 7) !== 'http://') {
       $json = file_get_contents($this->listUrl);
     }
     else {
       $response = drupal_http_request($this->listUrl, $this->httpOptions);
-      $json = $response->data;
+      if (isset($response->error)) {
+        watchdog(
+          'dkan_migrate_base', 'See ' . __FUNCTION__ . '() Error: ' . check_plain($response->error), NULL, WATCHDOG_ERROR
+        );
+      }
+      else {
+        $json = $response->data;
+      }
     }
-    if ($json) {
+    if (isset($json)) {
       $data = drupal_json_decode($json);
-      if ($data) {
+      if (!empty($data) && isset($data['result'])) {
         $count = count($data['result']);
       }
     }
     // Only return page number if that many actually exist.
-    if ($count > $this->page) {
+    if ($this->page && $count > $this->page) {
       $count = $this->page;
     }
     return $count;
@@ -153,7 +175,10 @@ class CKANItemJSON extends MigrateItemJSON {
    */
   public function computeCount() {
     $count = 0;
-    if (empty($this->httpOptions)) {
+    if (substr($this->listUrl, 0, 6) == 'public') {
+      $json = file_get_contents($this->listUrl);
+    }
+    elseif (!substr($this->listUrl, 0, 6) == 'http://') {
       $json = file_get_contents($this->listUrl);
     }
     else {
@@ -238,6 +263,22 @@ abstract class MigrateDKAN extends Migration {
   }
 
   /**
+   * Prepare() for Datasets.
+   */
+  public function datasetPrepare($node, $row) {
+    $node->uuid = $row->id;
+    // Turn off pathauto for import and set path.
+    $node->path['pathauto'] = FALSE;
+    $node->path['alias'] = $row->name;
+    // Converts geojson spatial for saving field.
+    if (isset($node->field_spatial[$node->language][0]['wkt']) && $spatial = $node->field_spatial[$node->language][0]['wkt']) {
+      $geophp = geophp_load();
+      $geometry = geoPHP::load($spatial, 'json');
+      $node->field_spatial[$node->language][0] = geofield_get_values_from_geometry($geometry);
+    }
+  }
+
+  /**
    * Prepare row for Datasets.
    */
   public function datasetPrepareRow(&$row) {
@@ -263,8 +304,8 @@ abstract class MigrateDKAN extends Migration {
     }
 
     // Get unix timestamp values for dates.
-    $row->metadata_created = isset($row->metadata_created) ? strtotime($row->metadata_created) : '';
-    $row->metadata_modified = isset($row->metadata_modified) ? strtotime($row->metadata_modified) : '';
+    $row->metadata_created = isset($row->metadata_created) ? $this->StringToTime($row->metadata_created) : '';
+    $row->metadata_modified = isset($row->metadata_modified) ? $this->StringToTime($row->metadata_modified) : '';
     $row->spatialText = NULL;
     if (isset($row->extras)) {
       foreach ($row->extras as $extra) {
@@ -345,15 +386,15 @@ abstract class MigrateDKAN extends Migration {
     $node->uid = $user->uid ? $user->uid : 1;
     $node->type = 'group';
     $node->title = $group->title;
-    $node->body['und'][0]['safe_value'] = $group->description;
-    if ($group->image_display_url) {
+    $node->body['und'][0]['safe_value'] = isset($group->description) ? $group->description : '';
+    if (isset($group->image_display_url) && $group->image_display_url) {
       $name = explode('/', $group->image_display_url->url);
       $name = $name[count($name) - 1];
       $uri = 'public://' . $name;
       $file = $this->downloadExternalFile($group->image_display_url, $uri);
       $node->field_image['und'][0] = $file;
     }
-    $node->uuid = $group->id;
+    $node->uuid = isset($group->id) ? $group->id : '';
     node_save($node);
     return $node;
   }
@@ -503,6 +544,8 @@ abstract class MigrateDKAN extends Migration {
 
   /**
    * Looks up format if exists, if not creates it.
+   *
+   * @return object
    */
   public function createTax($name, $vocab_name, $vid) {
     if ($term = taxonomy_get_term_by_name($name, $vocab_name, $vid)) {
@@ -514,7 +557,14 @@ abstract class MigrateDKAN extends Migration {
       $new_term->name = $name;
       $new_term->vid = $vid;
       $term = taxonomy_term_save($new_term);
-      return $term;
+      if ($term == SAVED_NEW) {
+        $term = taxonomy_get_term_by_name($name, $vocab_name);
+        $term = array_pop($term);
+        return $term;
+      }
+      else {
+        return NULL;
+      }
     }
   }
 
