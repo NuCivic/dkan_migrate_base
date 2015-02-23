@@ -12,6 +12,7 @@ function dkan_migrate_base_migrations_disable() {
   Migration::deregisterMigration('ckan_dataset_base');
   Migration::deregisterMigration('ckan_group_base');
   Migration::deregisterMigration('ckan_resource_base');
+  Migration::deregisterMigration('datajson_dataset_base');
 }
 
 /**

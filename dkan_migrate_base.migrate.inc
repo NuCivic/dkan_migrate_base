@@ -18,6 +18,11 @@ function dkan_migrate_base_migrate_api() {
       ),
     ),
     'migrations' => array(
+      'datajson_dataset_base' => array(
+        'class_name' => 'MigrateDataJsonDatasetBase',
+        'group_name' => 'dkan',
+        'title' => t('Data.json Dataset Base'),
+      ),
       'ckan_dataset_base' => array(
         'class_name' => 'MigrateCkanDatasetBase',
         'group_name' => 'dkan',
