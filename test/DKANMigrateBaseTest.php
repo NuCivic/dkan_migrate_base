@@ -1,9 +1,24 @@
 <?php
+
+class DKANMigrateBaseTestSetup
+{
+    public function unpublishNodes($type) {
+      db_update('node')
+        ->fields(array(
+          'status' => 0,
+        ))
+        ->condition('type', $type)
+        ->execute();
+    }
+}
+
 class DKANMigrateBaseTest  extends PHPUnit_Framework_TestCase
 {
 
-    protected function setUp()
+    public static function setUpBeforeClass()
     {
+        $setup = new DKANMigrateBaseTestSetup();
+        $setup->unpublishNodes('dataset');
         migrate_static_registration();
     }
 
@@ -21,7 +36,7 @@ class DKANMigrateBaseTest  extends PHPUnit_Framework_TestCase
         return $node;
     }
 
-    public function ResourceAssert($expected, $result)
+    public function nodeAssert($expected, $result)
     {
       foreach ($expected as $field => $value) {
         $this->assertEquals($expected[$field], $result[$field]);
@@ -29,13 +44,13 @@ class DKANMigrateBaseTest  extends PHPUnit_Framework_TestCase
 
     }
 
-    public function rollback($migrationName, $remainingNodes = 4)
+    public function rollback($migrationName, $remainingNodes = 0)
     {
       $migration = Migration::getInstance($migrationName);
       $result = $migration->processRollback();
       // Test rollback
       // TODO: DKAN comes with 4 resources. Remove first so count is 0.
-      $rawnodes = node_load_multiple(FALSE, array('type' => 'dataset'), TRUE);
+      $rawnodes = node_load_multiple(FALSE, array('type' => 'dataset', 'status' => 1), TRUE);
       $this->assertEquals($remainingNodes, count($rawnodes));
       $count = db_select('migrate_map_' . $migrationName, 'map')
                 ->fields('map', array('sourceid1'))
@@ -77,7 +92,7 @@ class DKANMigrateBaseTest  extends PHPUnit_Framework_TestCase
       $result['file']   = substr($file['filename'], 0, 22);
       $expect['file']   = 'Polling_Places_Madison';
 
-      $this->resourceAssert($expect, $result);
+      $this->nodeAssert($expect, $result);
     }
 
     public function testCKANDatasetImport()
@@ -97,8 +112,7 @@ class DKANMigrateBaseTest  extends PHPUnit_Framework_TestCase
       // maintainer
       // maintainer_email
       // licence_title
-      
-      $this->resourceAssert($expect, $result);
+      $this->nodeAssert($expect, $result);
     }
 
     public function testCKANDatasetRollback() {
@@ -109,7 +123,7 @@ class DKANMigrateBaseTest  extends PHPUnit_Framework_TestCase
       $this->rollback('dkan_migrate_base_example_ckan_resources');
     }
 
-    public function testCKANDataJsonImport()
+    public function testDataJsonImport()
     {
       $expected = $result = array();
       $this->migrate('dkan_migrate_base_example_data_json11');
@@ -125,6 +139,8 @@ class DKANMigrateBaseTest  extends PHPUnit_Framework_TestCase
 
       $result['title']  = $node->title;
       $expect['title']  = "Gross Rent over time";
+      $result['body']   = $node->body['und'][0]['value'];
+      $expect['body']  = "Here is a description";
       $result['id']  = $node->uuid;
       $expect['id']  = "b6a4942e-fa73-4cbf-804f-1f9eea6d02df";
       $result['keyword1']  = $keyword1->name;
@@ -143,16 +159,54 @@ class DKANMigrateBaseTest  extends PHPUnit_Framework_TestCase
       $expect['contactPoint']  = "Bruce Wayne";
       $result['contactEmail']  = $node->field_contact_email['und'][0]['value'];
       $expect['contactEmail']  = "bruce@notbatman.com";
+      $result['spatial']  = $node->field_spatial_geographical_cover['und'][0]['value'];
+      $expect['spatial']  = "Lincoln, Nebraska";
+      if (module_exists('open_data_federal_extras')) {
+        $result['bureauCode']  = $node->field_odfe_bureau_code['und'][0]['value'];
+        $expect['bureauCode']  = "010:86";
+        $result['programCode']  = $node->field_odfe_program_code['und'][0]['value'];
+        $expect['programCode']  = "015:001";
+        $result['programCode2']  = $node->field_odfe_program_code['und'][1]['value'];
+        $expect['programCode2']  = "015:002";
+        $result['landingPage']  = $node->field_odfe_landing_page['und'][0]['url'];
+        $expect['landingPage']  = "http://www.agency.gov/vegetables";
+        $result['rights']  = $node->field_odfe_rights['und'][0]['value'];
+        $expect['rights']  = "This dataset contains Personally Identifiable Information and could not be released for public access.";
+        $result['dataStandard']  = $node->field_odfe_conforms_to['und'][0]['url'];
+        $expect['dataStandard']  = "http://www.agency.gov/common-vegetable-analysis-model";
+        $result['describedByType']  = $node->field_odfe_data_dictionary_type['und'][0]['value'];
+        $expect['describedByType']  = "application/pdf";
+        $result['describedByType']  = $node->field_odfe_is_part_of['und'][0]['value'];
+        $expect['describedByType']  = "http://dx.doi.org/10.7927/H4PZ56R2";
+        $result['primaryITInvestmentUII']  = $node->field_odfe_investment_uii['und'][0]['value'];
+        $expect['primaryITInvestmentUII']  = "023-000000001";
+        $result['systemOfRecords']  = $node->field_odfe_system_of_records['und'][0]['url'];
+        $expect['systemOfRecords']  = "https://www.federalregister.gov/articles/2002/04/08/02-7376/privacy-act-of-1974-publication-in-full-of-all-notices-of-systems-of-records-including-several-new#p-361";
+      }
+      $result['temporalBegin']  = $node->field_temporal_coverage['und'][0]['value'];
+      $expect['temporalBegin']  = "2000-01-15 00:45:00";
+      $result['temporalEnd']  = $node->field_temporal_coverage['und'][0]['value2'];
+      $expect['temporalEnd']  = "2010-01-15 00:06:00";
+      $result['accrualPeriodicity']  = $node->field_frequency['und'][0]['value'];
+      $expect['accrualPeriodicity']  = "R/P1Y";
+      $result['describedBy']  = $node->field_data_dictionary['und'][0]['value'];
+      $expect['describedBy']  = "http://www.agency.gov/vegetables/definitions.pdf";
+      $result['references']  = $node->field_related_content['und'][0]['url'];
+      $expect['references']  = "http://www.agency.gov/legumes/legumes_data_documentation.html";
+      $result['additional']  = $node->field_additional_info['und'][0]['first'];
+      $expect['additional']  = "crazy";
+      $result['additional2']  = $node->field_additional_info['und'][0]['second'];
+      $expect['additional2']  = "what";
 
       $result['resource1Name']  = $resource1->title;
-      $expect['resource1Name']  = "txt";
+      $expect['resource1Name']  = "Gross Rent over time - txt";
       $result['resource1Format']  = $format1->name;
       $expect['resource1Format']  = "txt";
       $result['resource1DownloadUrl']  = $resource1->field_link_api['und'][0]['url'];
       $expect['resource1DownloadUrl']  = "http://example.com/sites/default/files/grossrents_adj.txt";
 
       $result['resource2Name']  = $resource2->title;
-      $expect['resource2Name']  = "csv";
+      $expect['resource2Name']  = "Gross Rent over time - csv";
       $result['resource2Format']  = $format2->name;
       $expect['resource2Format']  = "csv";
       $result['resource2DownloadUrl']  = $resource2->field_link_api['und'][0]['url'];
@@ -163,11 +217,35 @@ class DKANMigrateBaseTest  extends PHPUnit_Framework_TestCase
       // maintainer_email
       // licence_title
 
-      $this->resourceAssert($expect, $result);
+      $this->nodeAssert($expect, $result);
     }
 
-    public function testCKANDataJsonRollback() {
+    public function testDataJsonRollback() {
       $this->rollback('dkan_migrate_base_example_data_json11');
     }
+}
 
+class DKANMigrateBaseTestUnit extends PHPUnit_Framework_TestCase
+{
+    public function setup() {
+        include "dkan_migrate_base.module";
+    }
+
+    public function testIsoConversion() {
+        $date = "2000-01-15T00:45:00Z";
+        $result = dkan_migrate_base_iso_interval_to_timestamp($date);
+        $this->assertEquals("01 15 00", date('m d y', $result['from']));
+        $this->assertEquals(NULL, $result['to']);
+
+        $date = "2000-01-15T00:45:00Z/P1W";
+        $result = dkan_migrate_base_iso_interval_to_timestamp($date);
+        $this->assertEquals("01 15 00", date('m d y', $result['from']));
+        $this->assertEquals("01 22 00", date('m d y', $result['to']));
+
+        $date = "2000-01-15T00:45:00Z/2010-01-15T00:06:00Z";
+        $result = dkan_migrate_base_iso_interval_to_timestamp($date);
+        $this->assertEquals("01 15 00", date('m d y', $result['from']));
+        $this->assertEquals("01 15 10", date('m d y', $result['to']));
+
+    }
 }
