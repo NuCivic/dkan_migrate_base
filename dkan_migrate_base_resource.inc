@@ -35,21 +35,28 @@ class MigrateCkanResourceBase extends MigrateCkanBase {
       "file" => "file",
     );
 
-    $file_name = 'public://ckan-migrate-resource_list_' . get_class($this);
-    if (!file_exists($file_name)) {
-      drupal_set_message('resource_show created');
-      // CKAN doesn't have a resource_list endpoint. This function creates one.
-      dkan_migrate_base_create_resource_list($this->endpoint, $file_name, TRUE);
-      variable_set('dkan_migrate_base_ckan-migrate-resource_list', date('r', time()));
-    }
-    else {
-      $date = variable_get('dkan_resource_list_' . get_class($this), t('unknown'));
-      drupal_set_message(t('ckan-migrate-resource_list file downloaded locally. Last updated %date.', array('%date' => $date)));
-    }
-    $json_file = file_create_url($file_name);
-    $item_url = $this->endpoint . 'resource_show?id=:id';
+    $list_url = isset($arguments['list_url']) ? $arguments['list_url'] : 'resource_list';
+    $item_url = isset($arguments['item_url']) ? $arguments['item_url'] : 'resource_show?id=:id';
 
-    $this->source = new MigrateSourceList(new CKANListJSON($json_file),
+    if ($list_url == 'resource_list') {
+      $file_name = 'public://ckan-migrate-resource_list_' . get_class($this);
+      if (!file_exists($file_name)) {
+        drupal_set_message('resource_show created');
+        // CKAN doesn't have a resource_list endpoint. This function fakes it.
+        dkan_migrate_base_create_resource_list($this->endpoint, $file_name, TRUE);
+        variable_set('dkan_migrate_base_ckan-migrate-resource_list', date('r', time()));
+      }
+      else {
+        $date = variable_get('dkan_resource_list_' . get_class($this), t('unknown'));
+        drupal_set_message(t('ckan-migrate-resource_list file downloaded locally. Last updated %date.', array('%date' => $date)));
+      }
+      $list_url = file_create_url($file_name);
+    }
+
+    $list_url = $this->endpoint . $list_url;
+    $item_url = $this->endpoint . $item_url;
+
+    $this->source = new MigrateSourceList(new CKANListJSON($list_url),
           new CKANItemJSON($item_url, $fields), $fields);
     $this->map = new MigrateSQLMap(
             $this->machineName,
