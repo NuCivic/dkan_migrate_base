@@ -202,6 +202,307 @@ class CKANItemJSON extends MigrateItemJSON {
  */
 abstract class MigrateDKAN extends Migration {
   /**
+   * Adds default dataset mappings.
+   */
+  public function addDefaultDatasetMappings() {
+    $this->addFieldMapping('title', 'title');
+    $this->addFieldMapping('field_license', 'license_title');
+    $this->addFieldMapping('created', 'metadata_created');
+    $this->addFieldMapping('changed', 'metadata_modified');
+    $this->addFieldMapping('field_author', 'author');
+    $this->addFieldMapping('field_contact_email', 'author_email');
+    $this->addFieldMapping('uid', 'uid');
+    $this->addFieldMapping('id', 'uuid');
+    $this->addFieldMapping('path', 'name');
+    $this->addFieldMapping('body', 'notes');
+    $this->addFieldMapping('field_spatial_geographical_cover', 'spatialText');
+    $this->addFieldMapping('field_spatial', 'spatial');
+    $this->addFieldMapping('field_resources', 'resource_ids');
+    $this->addFieldMapping('og_group_ref', 'group_ids');
+    $this->addFieldMapping('field_tags', 'tag_names');
+    $this->addFieldMapping('field_additional_info', 'field_additional_info_key');
+    $this->addFieldMapping('field_additional_info:second', 'field_additional_info_value');
+  }
+
+  /**
+   * Prepare row for Datasets.
+   */
+  public function datasetPrepareRow(&$row) {
+    $row->uid = $this->getUser($row->creator_user_id);
+    $row->name = 'dataset/' . $row->name;
+    $row->resource_ids = array();
+
+    if (isset($row->resources)) {
+      foreach ($row->resources as $resource) {
+        $row->resource_ids[] = $this->getResourceId($resource->id);
+      }
+    }
+
+    $tags = taxonomy_vocabulary_machine_name_load('tags');
+    if (isset($row->tags)) {
+      foreach ($row->tags as $tag) {
+        $this->createTax($tag->name, 'tags', $tags->vid);
+        $row->tag_names[] = $tag->name;
+      }
+    }
+
+    if (isset($row->groups)) {
+      foreach ($row->groups as $group) {
+        $row->group_ids[] = $this->getGroupId($group->id);
+      }
+    }
+
+    // Get unix timestamp values for dates.
+    $row->metadata_created = strtotime($row->metadata_created);
+    $row->metadata_modified = strtotime($row->metadata_modified);
+    $row->spatialText = NULL;
+    if (isset($row->extras)) {
+      foreach ($row->extras as $extra) {
+        if ($extra->key == 'spatial-text') {
+          $row->spatialText = $extra->value;
+        }
+        elseif ($extra->key == 'spatial') {
+          $row->spatial = $extra->value;
+        }
+        else {
+          $row->field_additional_info_key[] = $extra->key;
+          $row->field_additional_info_value[] = $extra->value;
+        }
+      }
+    }
+  }
+
+  /**
+   * Creates new Groups and adds it to the map.
+   */
+  public function createAndMapGroups(&$row) {
+    if (isset($row->groups)) {
+      foreach ($row->groups as $num => $group) {
+        if ($group_nid = $this->getGroupId($group->id)) {
+          $row->group_ids[] = $group_nid;
+        }
+        else {
+          $group_node = $this->createGroupNode($group);
+          // Adds the node to the map. This means that when the migration is
+          // rolled back that the resources are removed as well. This adds the
+          // newly created uuids and nids to the migrate_map_data_json table.
+          $this->map->saveIDMapping($group_node, array($group_node->nid), 0, 0, '');
+        }
+      }
+    }
+  }
+
+  /**
+   * Creates new resources and adds it to the map.
+   */
+  public function createAndMapResources(&$row) {
+    if (isset($row->resources)) {
+      foreach ($row->resources as $num => $resource) {
+        $resource_node = $this->createResourceNode($resource);
+        // Adds the node to the map. This means that when the migration is
+        // rolled back that the resources are removed as well. This adds the
+        // newly created uuids and nids to the migrate_map_data_json table.
+        $this->map->saveIDMapping($resource_node, array($resource_node->nid), 0, 0, '');
+      }
+    }
+  }
+
+  /**
+   * Creates resource node.
+   */
+  public function createGroupNode($group) {
+    // TODO: Check high water mark.
+
+    global $user;
+    $node = new stdClass();
+    $node->is_new = TRUE;
+    $node->language = 'und';
+    $node->uid = $user->uid;
+    $node->type = 'group';
+    $node->title = $group->title;
+    $node->uuid = $group->id;
+    $node->body['und'][0]['safe_value'] = $group->description;
+    if ($group->image_display_url) {
+      $name = explode('/', $group->image_display_url->url);
+      $name = $name[count($name) - 1];
+      $uri = 'public://' . $name;
+      $file = $this->downloadExternalFile($group->image_display_url, $uri);
+      $node->field_image['und'][0] = $file;
+    }
+    node_save($node);
+    return $node;
+  }
+
+  /**
+   * Creates resource node.
+   */
+  public function createResourceNode($res) {
+    // TODO: Check high water mark.
+    // TODO: Check if UUID exits.
+
+    // Creates a new resource for every linked file.
+    // Linked files contain title, format, and accessURL.
+    global $user;
+    $node = new stdClass();
+    $node->is_new = TRUE;
+    $node->language = 'und';
+    $node->uid = $user->uid;
+    $node->type = 'resource';
+    $node->title = $res->name;
+    $node->uuid = $res->id;
+    $node->body = $res->description;
+    $res->format = strtolower($res->format);
+    $node->changed = $res->created;
+    if (isset($res->format)) {
+      $format_vocab = taxonomy_vocabulary_machine_name_load('format');
+      $this->createTax($res->format, 'format', $format_vocab->vid);
+      $tax = taxonomy_get_term_by_name($res->format, 'format', $format_vocab->vid);
+      $tid = array_keys($tax);
+      if ($tid[0]) {
+        $node->field_format['und'][0]['tid'] = $tid[0];
+      }
+    }
+    $file = remote_stream_wrapper_file_load_by_uri($res->url);
+    // Create a link to file for certain formats.
+    if ($res->format == 'csv' || $res->format == 'zip') {
+      if (!$file) {
+        $file = remote_stream_wrapper_file_create_by_uri($res->url);
+        $file->status = FALSE;
+        file_save($file);
+      }
+      $node->field_link_remote_file['und'][0]['fid'] = $file->fid;
+      $node->field_link_remote_file['und'][0]['display'] = 1;
+    }
+    else {
+      // Link to API for all others.
+      $node->field_link_api['und'][0]['url'] = $dist->accessURL;
+    }
+    node_save($node);
+    return $node;
+  }
+
+  /**
+   * Looks up nid for resource.
+   */
+  public function getResourceId($uuid) {
+    if ($nid = entity_get_id_by_uuid('node', array($uuid))) {
+      return $nid[$uuid];
+    }
+  }
+
+  /**
+   * Looks up nid for group.
+   */
+  public function getGroupId($uuid) {
+    if ($nid = entity_get_id_by_uuid('node', array($uuid))) {
+      return $nid[$uuid];
+    }
+  }
+
+  /**
+   * Prepare for Datasets.
+   */
+  public function datasetPrepare(&$node, &$row) {
+    $node->uuid = $row->id;
+    // Turn off pathauto for import and set path.
+    $node->path['pathauto'] = FALSE;
+    $node->path['alias'] = $row->name;
+    // Converts geojson spatial for saving field.
+    if (isset($node->field_spatial[$node->language][0]['wkt']) && $spatial = $node->field_spatial[$node->language][0]['wkt']) {
+      $geophp = geophp_load();
+      $geometry = geoPHP::load($spatial, 'json');
+      $node->field_spatial[$node->language][0] = geofield_get_values_from_geometry($geometry);
+    }
+  }
+
+  /**
+   * Looks up user if they exist, if not creates them.
+   *
+   * @param string $creator_user_id
+   *   UUID for user from CKAN.
+   *
+   * @return string
+   *   Drupal user_id (uid).
+   */
+  public function getUser($creator_user_id) {
+    if (isset($creator_user_id) && $creator_user_id) {
+      if ($uid = entity_get_id_by_uuid('user', array($creator_user_id))) {
+        return $uid[$creator_user_id];
+      }
+      else {
+        $new_user = array(
+          'uuid' => $creator_user_id,
+        );
+        // Get User name from CKAN API.
+        $response = drupal_http_request($this->endpoint . 'user_show?id=' .  $creator_user_id);
+        $json = $response->data;
+        $data = drupal_json_decode($json);
+        if ($name = $data['result']['name']) {
+          $current_uid = db_query("SELECT uid from {users} WHERE name = :name", array(":name" => $name))->fetchField();
+          if ($current_uid) {
+            $account = user_load($current_uid);
+            return $account->uid;
+          }
+          else {
+            $new_user['name'] = $name;
+            $account = user_save(NULL, $new_user);
+            return $account->uid;
+          }
+        }
+        else {
+          return 1;
+        }
+      }
+    }
+  }
+
+
+  /**
+   * Creates list of fields for CKAN Dataset.
+   */
+  public function getCkanDatasetFields() {
+    return array(
+      "license_title" => "License Title",
+      "maintainer" => "Maintaier",
+      "relationships_as_object" => "",
+      "private" => "Private",
+      "maintainer_email" => "",
+      "revision_timestamp" => "Revision Date",
+      "id" => "UUID",
+      "metadata_created" => "Created Date",
+      "metadata_modified" => "Modified Date",
+      "author" => "Author",
+      "author_email" => "Author Email",
+      "state" => "State",
+      "version" => "Version",
+      "creator_user_id" => "Author UUID",
+      "type" => "Node Type",
+      "resources" => "Resources",
+      "num_resources" => "Number of Resources",
+      "tag_names" => "Tags",
+      "tracking_summary" => "Tracking Summary",
+      "groups" => "Groups",
+      "license_id" => "Licence ID",
+      "relationships_as_subject" => "",
+      "num_tags" => "Number of Tags",
+      "organization" => "Organization",
+      "name" => "Name slug",
+      "isopen" => "Is Open (bollean)",
+      "url" => "URL",
+      "notes" => "Description",
+      "owner_org" => "Owner Organization",
+      "extras" => "Extras",
+      "title" => "Title",
+      "revision_id" => "Revision ID",
+      // This doesn't actually exist but we are adding it later in prepareRow.
+      "uid" => "User ID",
+      "resource_ids" => "Resource IDS",
+      "group_ids" => "Group IDS",
+    );
+  }
+
+
+  /**
    * Looks up format if exists, if not creates it.
    */
   public function createTax($name, $vocab_name, $vid) {

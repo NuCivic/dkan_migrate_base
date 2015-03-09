@@ -33,13 +33,52 @@ function dkan_migrate_base_example_migrate_api() {
   return $api;
 }
 
-class MigrateCkanDatasetExample extends MigrateCkanDatasetBase {
+class MigrateCkanDatasetExample extends MigrateCkanBase {
   /**
    * Add endpoint.
    */
   public function __construct($arguments) {
-    $arguments['endpoint'] = 'http://example.com/api/3/action/';
     parent::__construct($arguments);
+    $fields = $this->getCkanDatasetFields();
+
+    $arguments['endpoint'] = 'http://demo.getdkan.com/api/3/action/';
+    //$arguments['endpoint'] = 'http://hub.healthdata.gov/api/3/action/';
+    $list_url = isset($arguments['list_url']) ? $arguments['list_url'] : 'package_list';
+    $list_url = $arguments['endpoint'] . $list_url;
+    $item_url = isset($arguments['item_url']) ? $arguments['item_url'] : 'package_show?id=:id';
+    $item_url = $arguments['endpoint'] . $item_url;
+
+    $this->highwaterField = array(
+      'name' => 'revision_timestamp',
+    );
+
+    $this->source = new MigrateSourceList(new CKANlistJSON($list_url),
+          new CKANItemJSON($item_url, $fields), $fields);
+    $this->map = new MigrateSQLMap(
+            $this->machineName,
+            array(
+              'uuid' => array(
+                'type' => 'varchar',
+                'length' => 255,
+                'not null' => TRUE,
+                'description' => 'id',
+              ),
+            ),
+            MigrateDestinationNode::getKeySchema()
+        );
+
+    $this->destination = new MigrateDestinationNode('dataset', array('text_format' => 'html'));
+
+    $this->addDefaultDatasetMappings();
+  }
+
+  /**
+   * Implements prepareRow.
+   */
+  public function prepareRow($row) {
+    $this->createAndMapResources($row);
+    $this->createAndMapGroups($row);
+    $this->datasetPrepareRow($row);
   }
 }
 class MigrateCkanResourcesExample extends MigrateCkanResourceBase {
@@ -47,8 +86,15 @@ class MigrateCkanResourcesExample extends MigrateCkanResourceBase {
    * Add endpoint.
    */
   public function __construct($arguments) {
-    $arguments['endpoint'] = 'http://example.com/api/3/action/';
+    $arguments['endpoint'] = 'http://hub.healthdata.gov/api/3/action/';
     parent::__construct($arguments);
+  }
+
+  /**
+   * Implements prepareRow().
+   */
+  public function prepareRow($row) {
+    parent::prepareRow($row);
   }
 }
 

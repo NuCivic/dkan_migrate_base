@@ -50,67 +50,8 @@ class MigrateCkanDatasetBase extends MigrateCkanBase {
 
     $this->destination = new MigrateDestinationNode('dataset', array('text_format' => 'html'));
 
-    $this->addFieldMapping('title', 'title');
-    $this->addFieldMapping('field_license', 'license_title');
-    $this->addFieldMapping('created', 'metadata_created');
-    $this->addFieldMapping('changed', 'metadata_modified');
-    $this->addFieldMapping('field_author', 'author');
-    $this->addFieldMapping('field_contact_email', 'author_email');
-    $this->addFieldMapping('uid', 'uid');
-    $this->addFieldMapping('id', 'uuid');
-    $this->addFieldMapping('path', 'name');
-    $this->addFieldMapping('body', 'notes');
-    $this->addFieldMapping('field_spatial_geographical_cover', 'spatialText');
-    $this->addFieldMapping('field_spatial', 'spatial');
-    $this->addFieldMapping('field_resources', 'resource_ids');
-    $this->addFieldMapping('og_group_ref', 'group_ids');
-    $this->addFieldMapping('field_tags', 'tag_names');
-    $this->addFieldMapping('field_additional_info', 'field_additional_info_key');
-    $this->addFieldMapping('field_additional_info:second', 'field_additional_info_value');
-  }
+    $this->addDefaultDatasetMappings();
 
-  /**
-   * Creates list of fields for CKAN Dataset.
-   */
-  public function getCkanDatasetFields() {
-    return array(
-      "license_title" => "License Title",
-      "maintainer" => "Maintaier",
-      "relationships_as_object" => "",
-      "private" => "Private",
-      "maintainer_email" => "",
-      "revision_timestamp" => "Revision Date",
-      "id" => "UUID",
-      "metadata_created" => "Created Date",
-      "metadata_modified" => "Modified Date",
-      "author" => "Author",
-      "author_email" => "Author Email",
-      "state" => "State",
-      "version" => "Version",
-      "creator_user_id" => "Author UUID",
-      "type" => "Node Type",
-      "resources" => "Resources",
-      "num_resources" => "Number of Resources",
-      "tag_names" => "Tags",
-      "tracking_summary" => "Tracking Summary",
-      "groups" => "Groups",
-      "license_id" => "Licence ID",
-      "relationships_as_subject" => "",
-      "num_tags" => "Number of Tags",
-      "organization" => "Organization",
-      "name" => "Name slug",
-      "isopen" => "Is Open (bollean)",
-      "url" => "URL",
-      "notes" => "Description",
-      "owner_org" => "Owner Organization",
-      "extras" => "Extras",
-      "title" => "Title",
-      "revision_id" => "Revision ID",
-      // This doesn't actually exist but we are adding it later in prepareRow.
-      "uid" => "User ID",
-      "resource_ids" => "Resource IDS",
-      "group_ids" => "Group IDS",
-    );
   }
 
   /**
@@ -159,12 +100,14 @@ class MigrateCkanDatasetBase extends MigrateCkanBase {
         }
       }
     }
+    $this->datasetPrepareRow($row);
   }
 
   /**
    * Implements prepare.
    */
   public function prepare($node, stdClass $row) {
+    // TODO: Move into datasetPrepare().
     $node->uuid = $row->id;
     // Turn off pathauto for import and set path.
     $node->path['pathauto'] = FALSE;
@@ -175,5 +118,6 @@ class MigrateCkanDatasetBase extends MigrateCkanBase {
       $geometry = geoPHP::load($spatial, 'json');
       $node->field_spatial[$node->language][0] = geofield_get_values_from_geometry($geometry);
     }
+    $this->datasetPrepare($node, $row);
   }
 }
