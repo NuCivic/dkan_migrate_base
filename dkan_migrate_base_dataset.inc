@@ -115,7 +115,7 @@ class MigrateCkanDatasetBase extends MigrateCkanBase {
 
     if (isset($row->resources)) {
       foreach ($row->resources as $resource) {
-        $row->resource_ids[] = $this->getResourceId($resource->id);
+        $row->resource_ids[] = array($this->getResourceId($resource->id));
       }
     }
 
