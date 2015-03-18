@@ -2,11 +2,11 @@
 
 /**
  * @file
- * Migration Class for Datasets
+ * Migration Class for Datasets.
  */
 
 /**
- * Migrate CKAN dataset
+ * Migrate CKAN dataset.
  */
 class MigrateCkanDatasetBase extends MigrateCkanBase {
   /**
@@ -40,7 +40,7 @@ class MigrateCkanDatasetBase extends MigrateCkanBase {
             MigrateDestinationNode::getKeySchema()
         );
 
-    $this->destination = new MigrateDestinationNode('dataset');
+    $this->destination = new MigrateDestinationNode('dataset', array('text_format' => 'html'));
 
     $this->addFieldMapping('title', 'title');
     $this->addFieldMapping('field_license', 'license_title');

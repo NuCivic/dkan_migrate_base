@@ -71,7 +71,7 @@ class MigrateCkanResourceBase extends MigrateCkanBase {
             MigrateDestinationNode::getKeySchema()
         );
 
-    $this->destination = new MigrateDestinationNode('resource');
+    $this->destination = new MigrateDestinationNode('resource', array('text_format' => 'html'));
     $this->addFieldMapping('id', 'uuid');
     $this->addFieldMapping('title', 'name');
     $this->addFieldMapping('created', 'created');
