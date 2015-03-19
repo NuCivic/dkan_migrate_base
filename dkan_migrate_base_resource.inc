@@ -91,11 +91,10 @@ class MigrateCkanResourceBase extends MigrateCkanBase {
     // TODO:
     // + Find way to get user name for creator of resource
     // + Improve preview for files stuck as links.
-    // Get unix timestamp values for dates.
-    $row->created = strtotime($row->created);
-    $row->created = strtotime($row->last_modified);
+    $row->created = $this->StringToTime($row->created);
+    $row->created = $this->StringToTime($row->last_modified);
     $row->group_ids = array($row->resource_group_id);
-    $row->last_modified = strtotime($row->last_modified);
+    $row->last_modified = $this->StringToTime($row->last_modified);
 
     $row->name = $row->name ? $row->name : $row->description;
     // Tax terms in Drupal are case sensitive. It is better to have a single

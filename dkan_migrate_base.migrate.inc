@@ -168,6 +168,18 @@ abstract class MigrateCkanBase extends Migration {
   }
 
   /**
+   * Converts times with edge cases.
+   */
+  public function StringToTime($date) {
+    if ($date = str_replace('-', '', $date)) {
+      return strtotime($date);
+    }
+    else {
+      return strtotime($date);
+    }
+  }
+
+  /**
    * Saves file locally.
    *
    * @param string $url

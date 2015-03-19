@@ -134,8 +134,8 @@ class MigrateCkanDatasetBase extends MigrateCkanBase {
     }
 
     // Get unix timestamp values for dates.
-    $row->metadata_created = strtotime($row->metadata_created);
-    $row->metadata_modified = strtotime($row->metadata_modified);
+    $row->metadata_created = $this->StringToTime($row->metadata_created);
+    $row->metadata_modified = $this->StringToTime($row->metadata_modified);
     $row->spatialText = NULL;
     if (isset($row->extras)) {
       foreach ($row->extras as $extra) {
