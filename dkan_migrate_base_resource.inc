@@ -131,6 +131,6 @@ class MigrateCkanResourceBase extends MigrateCkanBase {
   public function prepare($node, stdClass $row) {
     // UUID doesn't show up as a field so had to do this.
     $node->uuid = $row->id;
-    $row->format = isset($rowm->format) && $row->format ? $row->format : 'data';
+    $row->format = isset($row->format) && $row->format ? $row->format : 'data';
   }
 }
