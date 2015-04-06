@@ -30,7 +30,8 @@ before_script:
   - drush --quiet --yes --root=$PWD runserver :8888 > /dev/null 2>&1 &
   - sleep 4
 
-  - cd 
+  - ls -l
+  - pwd
   - cp -r $TRAVIS_BUILD_DIR sites/all/modules/.
   - drush en -y dkan_migrate_base
   - cd dkan_migrate_base
