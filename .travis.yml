@@ -31,7 +31,7 @@ before_script:
   - sleep 4
 
   - cd sites/all/modules
-  - cp -r $TRAVIS_BUILD_DIR dkan_migrate_base
+  - cp -r $TRAVIS_BUILD_DIR .
   - drush en -y dkan_migrate_base
   - cd dkan_migrate_base
 
