@@ -33,7 +33,7 @@ before_script:
 
   - cp -r /home/travis/build/NuCivic/dkan_migrate_base sites/all/modules/.
   - drush en -y dkan_migrate_base
-  - cd dkan_migrate_base
+  - cd sites/all/modules/dkan_migrate_base
 
 script:
   - bin/phpspec run --bootstrap=spec/boot.php spec/DKANMigrateBaseValidatorSpec.php
