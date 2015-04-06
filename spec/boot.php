@@ -20,11 +20,3 @@ $driver->setCoreFromVersion();
 
 // Bootstrap Drupal.
 $driver->bootstrap();
-
-// Create a node.
-$node = (object) array(
-  'type' => 'article',
-  'uid' => 1,
-  'title' => $driver->getRandom()->name(),
-);
-$driver->createNode($node);
