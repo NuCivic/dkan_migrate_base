@@ -126,7 +126,9 @@ class CKANItemJSON extends MigrateItemJSON {
     }
     else {
       $json = json_decode(file_get_contents($item_url));
-      return $json->result;
+      if (!is_null($json)) {
+        return $json->result;
+      }
     }
     $migration = Migration::currentMigration();
     $message = t('Loading of !objecturl failed:', array('!objecturl' => $item_url));
@@ -161,7 +163,7 @@ abstract class MigrateCkanBase extends Migration {
   public function createTax($name, $vocab_name, $vid) {
     if (!taxonomy_get_term_by_name($name, $vocab_name, $vid)) {
       $new_term = new stdClass();
-      $new_term->name = $name;
+      $new_term->name = trim($name);
       $new_term->vid = $vid;
       taxonomy_term_save($new_term);
     }
