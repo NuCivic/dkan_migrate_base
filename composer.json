@@ -1,7 +1,8 @@
 {
     "require-dev": {
-        "phpspec/phpspec": "~2.0",
-         "drupal/drupal-driver": "~1.0"
+      "phpspec/phpspec": "~2.0",
+      "myplanetdigital/function_mock": "dev-master",
+      "drupal/drupal-driver": "~1.0"
     },
     "config": {
         "bin-dir": "bin"
