@@ -2,19 +2,13 @@
 
 class DKANMigrateBaseValidator
 {
-  public function resourceList($list)
-  {
-        $list = json_decode($list);
-        return $list->result;
-  }
-  public function resourceListCount($list)
-  {
-        $list = json_decode($list);
-        return count($list->result);
-  }
+    public function dkan_migrate_base_create_resource_list_items($endpoint, $fileName)
+    {
+          return dkan_migrate_base_create_resource_list_items($endpoint, $fileName);
+    }
 
-  public function getFile($file)
-  {
-        return file_get_contents($file);
-  }
+    public function getFile($file)
+    {
+          return file_get_contents($file);
+    }
 }

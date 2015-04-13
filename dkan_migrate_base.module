@@ -44,7 +44,6 @@ function dkan_migrate_base_create_resource_list_items($endpoint, $file_name) {
   foreach ($data['result'] as $id) {
     $dataset_show = preg_replace(array_fill(0, count($id), '/:id/'), $id, $item_url, 1);
     $resources = dkan_migrate_base_process_resource_list($dataset_show);
-    var_dump($resources);
     foreach ($resources as $key => $resource) {
       $resource_ids['result'][] = $resource['id'];
     }
@@ -63,13 +62,9 @@ function dkan_migrate_base_create_resource_list_items($endpoint, $file_name) {
  *   Resources attached to dataset.
  */
 function dkan_migrate_base_process_resource_list($dataset_show) {
-  var_dump($dataset_show);
   $dataset_response = drupal_http_request($dataset_show);
-  var_dump($dataset_response);
   $dataset_json = $dataset_response->data;
-  var_dump($dataset_json);
   $dataset_data = json_decode($dataset_json, TRUE);
-  var_dump($dataset_data);
   $resources = $dataset_data['result']['resources'];
   return $resources;
 }

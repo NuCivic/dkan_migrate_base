@@ -36,4 +36,4 @@ before_script:
   - cd sites/all/modules/dkan_migrate_base
 
 script:
-  - bin/phpspec run --bootstrap=spec/boot.php spec/DKANMigrateBaseValidatorSpec.php
+  - bin/phpspec run
