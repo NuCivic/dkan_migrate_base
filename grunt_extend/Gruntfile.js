@@ -27,11 +27,10 @@ module.exports = function(grunt) {
           }
     },
     watch: {
-      tasks: ['mkdir', 'template']
+      tasks: ['template']
     }
   });
 
-  grunt.loadNpmTasks('grunt-mkdir');
   grunt.loadNpmTasks('grunt-template');
   grunt.registerTask('default', ['template']);
 
