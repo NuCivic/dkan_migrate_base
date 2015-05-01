@@ -32,7 +32,7 @@ class <%- endpointClass %> extends <%- endpointClassExtends %> {
    * Registers endpoints.
    */
   public function __construct($arguments) {
-    $arguments['endpoint'] = <%- endpoint %>;
+    $arguments['endpoint'] = '<%- endpoint %>';
     parent::__construct($arguments);
   }
 
