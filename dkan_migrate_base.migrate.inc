@@ -21,17 +21,17 @@ function dkan_migrate_base_migrate_api() {
       'ckan_dataset_base' => array(
         'class_name' => 'MigrateCkanDatasetBase',
         'group_name' => 'dkan',
-        'title' => t('DKAN Dataset Base'),
+        'title' => t('CKAN Dataset Base'),
       ),
       'ckan_group_base' => array(
         'class_name' => 'MigrateCkanGroupBase',
         'group_name' => 'dkan',
-        'title' => t('DKAN Group Base'),
+        'title' => t('CKAN Group Base'),
       ),
       'ckan_resource_base' => array(
         'class_name' => 'MigrateCkanResourceBase',
         'group_name' => 'dkan',
-        'title' => t('DKAN Resource Base'),
+        'title' => t('CKAN Resource Base'),
       ),
     ),
   );
@@ -40,14 +40,61 @@ function dkan_migrate_base_migrate_api() {
 
 class CKANListJSON extends MigrateListJSON {
   /**
+   * Initialiazes.
+   */
+  public function __construct($list_url, $http_options = array()) {
+    parent::__construct($list_url);
+    $this->httpOptions = $http_options;
+    $this->page = isset($http_options['page']) ? $http_options['page'] : '';
+    $this->offset = isset($http_options['offset']) ? $http_options['offset'] : '';
+  }
+  /**
    * The default implementation assumes the IDs are top-level array elements.
    */
   protected function getIDsFromJSON(array $data) {
     $ids = array();
+    $datasets = 0;
+    $total = $this->page + $this->offset;
     foreach ($data['result'] as $item) {
+      if ($datasets < $this->offset) {
+        $datasets++;
+        continue;
+      }
       $ids[] = $item;
+      $datasets++;
+      if ($total && $datasets >= $total) {
+        break;
+      }
     }
     return $ids;
+  }
+
+  /**
+   * Loads the JSON at the given URL, and returns an array of the IDs.
+   *
+   * @return array
+   *   Array of IDs.
+   */
+  public function getIdList() {
+    migrate_instrument_start("Retrieve $this->listUrl");
+
+    if (substr($this->listUrl, 0, 6) == 'public') {
+      $json = file_get_contents($this->listUrl);
+    }
+    else {
+      $response = drupal_http_request($this->listUrl, $this->httpOptions);
+      $json = $response->data;
+    }
+    migrate_instrument_stop("Retrieve $this->listUrl");
+    if ($json) {
+      $data = drupal_json_decode($json);
+      if ($data) {
+        return $this->getIDsFromJSON($data);
+      }
+    }
+    Migration::displayMessage(t('Loading of !listurl failed:',
+        array('!listurl' => $this->listUrl)));
+    return NULL;
   }
 
   /**
@@ -67,6 +114,10 @@ class CKANListJSON extends MigrateListJSON {
       if ($data) {
         $count = count($data['result']);
       }
+    }
+    // Only return page number if that many actually exist.
+    if ($count > $this->page) {
+      $count = $this->page;
     }
     return $count;
   }
@@ -126,9 +177,7 @@ class CKANItemJSON extends MigrateItemJSON {
     }
     else {
       $json = json_decode(file_get_contents($item_url));
-      if (!is_null($json)) {
-        return $json->result;
-      }
+      return $json->result;
     }
     $migration = Migration::currentMigration();
     $message = t('Loading of !objecturl failed:', array('!objecturl' => $item_url));
@@ -148,24 +197,24 @@ class CKANItemJSON extends MigrateItemJSON {
   }
 }
 
-abstract class MigrateCkanBase extends Migration {
-  /**
-   * Here we go.
-   */
-  public function __construct($arguments) {
-    $this->endpoint = isset($arguments['endpoint']) ? $arguments['endpoint'] : 'http://demo.getdkan.com/api/3/action/';
-    parent::__construct($arguments);
-  }
-
+/**
+ * Put our useful functions here.
+ */
+abstract class MigrateDKAN extends Migration {
   /**
    * Looks up format if exists, if not creates it.
    */
   public function createTax($name, $vocab_name, $vid) {
-    if (!taxonomy_get_term_by_name($name, $vocab_name, $vid)) {
+    if ($term = taxonomy_get_term_by_name($name, $vocab_name, $vid)) {
+      $term = array_pop($term);
+      return $term;
+    }
+    else {
       $new_term = new stdClass();
-      $new_term->name = trim($name);
+      $new_term->name = $name;
       $new_term->vid = $vid;
-      taxonomy_term_save($new_term);
+      $term = taxonomy_term_save($new_term);
+      return $term;
     }
   }
 
@@ -178,6 +227,80 @@ abstract class MigrateCkanBase extends Migration {
     }
     else {
       return strtotime($date);
+    }
+  }
+
+  /**
+   * Gets Group Nid by title if exists.
+   */
+  public function getGroupNidByTitle($title) {
+    $type = 'group';
+    $result = db_query("SELECT n.nid FROM {node} n WHERE n.title = :title AND n.type = :type", array(":title"=> $title, ":type"=> $type));
+    $nid = $result->fetchField();
+    if ($nid) {
+      return $nid;
+    }
+    else {
+      return NULL;
+    }
+  }
+
+  /**
+   * Looks up nid for resource.
+   */
+  public function getResourceId($uuid) {
+    if ($nid = entity_get_id_by_uuid('node', array($uuid))) {
+      return $nid[$uuid];
+    }
+  }
+
+  /**
+   * Looks up nid for group.
+   */
+  public function getGroupId($uuid) {
+    if ($nid = entity_get_id_by_uuid('node', array($uuid))) {
+      return $nid[$uuid];
+    }
+  }
+
+  /**
+   * Looks up user if they exist, if not creates them.
+   *
+   * @param string $creator_user_id
+   *   UUID for user from CKAN.
+   *
+   * @return string
+   *   Drupal user_id (uid).
+   */
+  public function getUser($creator_user_id) {
+    if (isset($creator_user_id) && $creator_user_id) {
+      if ($uid = entity_get_id_by_uuid('user', array($creator_user_id))) {
+        return $uid[$creator_user_id];
+      }
+      else {
+        $new_user = array(
+          'uuid' => $creator_user_id,
+        );
+        // Get User name from CKAN API.
+        $response = drupal_http_request($this->endpoint . 'user_show?id=' .  $creator_user_id);
+        $json = $response->data;
+        $data = drupal_json_decode($json);
+        if ($name = $data['result']['name']) {
+          $current_uid = db_query("SELECT uid from {users} WHERE name = :name", array(":name" => $name))->fetchField();
+          if ($current_uid) {
+            $account = user_load($current_uid);
+            return $account->uid;
+          }
+          else {
+            $new_user['name'] = $name;
+            $account = user_save(NULL, $new_user);
+            return $account->uid;
+          }
+        }
+        else {
+          return 1;
+        }
+      }
     }
   }
 
@@ -228,4 +351,14 @@ abstract class MigrateCkanBase extends Migration {
     }
   }
 
+}
+
+abstract class MigrateCkanBase extends MigrateDKAN {
+  /**
+   * Here we go.
+   */
+  public function __construct($arguments) {
+    $this->endpoint = isset($arguments['endpoint']) ? $arguments['endpoint'] : 'http://demo.getdkan.com/api/3/action/';
+    parent::__construct($arguments);
+  }
 }

@@ -20,13 +20,21 @@ class MigrateCkanDatasetBase extends MigrateCkanBase {
     $list_url = $this->endpoint . $list_url;
     $item_url = isset($arguments['item_url']) ? $arguments['item_url'] : 'package_show?id=:id';
     $item_url = $this->endpoint . $item_url;
+    $this->page = isset($arguments['page']) ? $arguments['page'] : '';
+    $this->offset = isset($arguments['offset']) ? $arguments['offset'] : '';
 
     $this->highwaterField = array(
       'name' => 'revision_timestamp',
     );
 
-    $this->source = new MigrateSourceList(new CKANListJSON($list_url),
-          new CKANItemJSON($item_url, $fields), $fields);
+    $this->source = new MigrateSourceList(new CKANListJSON(
+      $list_url,
+      array('page' => $this->page,
+            'offset' => $this->offset,
+      )
+    ),
+    new CKANItemJSON($item_url, $fields), $fields);
+
     $this->map = new MigrateSQLMap(
             $this->machineName,
             array(
@@ -166,65 +174,6 @@ class MigrateCkanDatasetBase extends MigrateCkanBase {
       $geophp = geophp_load();
       $geometry = geoPHP::load($spatial, 'json');
       $node->field_spatial[$node->language][0] = geofield_get_values_from_geometry($geometry);
-    }
-  }
-
-  /**
-   * Looks up nid for resource.
-   */
-  public function getResourceId($uuid) {
-    if ($nid = entity_get_id_by_uuid('node', array($uuid))) {
-      return $nid[$uuid];
-    }
-  }
-
-  /**
-   * Looks up nid for group.
-   */
-  public function getGroupId($uuid) {
-    if ($nid = entity_get_id_by_uuid('node', array($uuid))) {
-      return $nid[$uuid];
-    }
-  }
-
-  /**
-   * Looks up user if they exist, if not creates them.
-   *
-   * @param string $creator_user_id
-   *   UUID for user from CKAN.
-   *
-   * @return string
-   *   Drupal user_id (uid).
-   */
-  public function getUser($creator_user_id) {
-    if (isset($creator_user_id) && $creator_user_id) {
-      if ($uid = entity_get_id_by_uuid('user', array($creator_user_id))) {
-        return $uid[$creator_user_id];
-      }
-      else {
-        $new_user = array(
-          'uuid' => $creator_user_id,
-        );
-        // Get User name from CKAN API.
-        $response = drupal_http_request($this->endpoint . 'user_show?id=' .  $creator_user_id);
-        $json = $response->data;
-        $data = drupal_json_decode($json);
-        if ($name = $data['result']['name']) {
-          $current_uid = db_query("SELECT uid from {users} WHERE name = :name", array(":name" => $name))->fetchField();
-          if ($current_uid) {
-            $account = user_load($current_uid);
-            return $account->uid;
-          }
-          else {
-            $new_user['name'] = $name;
-            $account = user_save(NULL, $new_user);
-            return $account->uid;
-          }
-        }
-        else {
-          return 1;
-        }
-      }
     }
   }
 }
