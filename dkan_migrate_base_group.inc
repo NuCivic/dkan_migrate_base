@@ -15,10 +15,19 @@ class MigrateCkanGroupBase extends MigrateCkanBase {
   public function __construct($arguments) {
     parent::__construct($arguments);
     $fields = $this->getCkanGroupFields();
-    $json_file = $this->endpoint . 'group_list';
+    $list_url = $this->endpoint . 'group_list';
     $item_url = $this->endpoint . 'group_show?id=:id';
-    $this->source = new MigrateSourceList(new CKANListJSON($json_file),
-          new CKANItemJSON($item_url, $fields), $fields);
+    $this->page = isset($arguments['page']) ? $arguments['page'] : '';
+    $this->offset = isset($arguments['offset']) ? $arguments['offset'] : '';
+
+    $this->source = new MigrateSourceList(new CKANListJSON(
+      $list_url,
+      array('page' => $this->page,
+            'offset' => $this->offset,
+      )
+    ),
+    new CKANItemJSON($item_url, $fields), $fields);
+
     $this->map = new MigrateSQLMap(
             $this->machineName,
             array(
