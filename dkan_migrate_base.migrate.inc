@@ -263,6 +263,12 @@ abstract class MigrateDKAN extends Migration {
     }
   }
 
+  public function getOrganizationId($uuid) {
+    if ($nid = entity_get_id_by_uuid('node', array($uuid))) {
+      return $nid[$uuid];
+    }
+  }
+
   /**
    * Looks up user if they exist, if not creates them.
    *

@@ -16,11 +16,11 @@ class MigrateCkanDatasetBase extends MigrateCkanBase {
     parent::__construct($arguments);
     $fields = $this->getCkanDatasetFields();
 
-    $list_url = isset($arguments['list_url']) ? $arguments['list_url'] : 'package_list';
-    $list_url = $this->endpoint . $list_url;
-    $item_url = isset($arguments['item_url']) ? $arguments['item_url'] : 'package_show?id=:id';
-    $item_url = $this->endpoint . $item_url;
-    $this->page = isset($arguments['page']) ? $arguments['page'] : '';
+    $list_url     = isset($arguments['list_url']) ? $arguments['list_url'] : 'package_list';
+    $list_url     = $this->endpoint . $list_url;
+    $item_url     = isset($arguments['item_url']) ? $arguments['item_url'] : 'package_show?id=:id';
+    $item_url     = $this->endpoint . $item_url;
+    $this->page   = isset($arguments['page']) ? $arguments['page'] : '';
     $this->offset = isset($arguments['offset']) ? $arguments['offset'] : '';
 
     $this->highwaterField = array(
@@ -29,24 +29,25 @@ class MigrateCkanDatasetBase extends MigrateCkanBase {
 
     $this->source = new MigrateSourceList(new CKANListJSON(
       $list_url,
-      array('page' => $this->page,
-            'offset' => $this->offset,
+      array(
+        'page'   => $this->page,
+        'offset' => $this->offset,
       )
     ),
-    new CKANItemJSON($item_url, $fields), $fields);
+      new CKANItemJSON($item_url, $fields), $fields);
 
     $this->map = new MigrateSQLMap(
-            $this->machineName,
-            array(
-              'uuid' => array(
-                'type' => 'varchar',
-                'length' => 255,
-                'not null' => TRUE,
-                'description' => 'id',
-              ),
-            ),
-            MigrateDestinationNode::getKeySchema()
-        );
+      $this->machineName,
+      array(
+        'uuid' => array(
+          'type'        => 'varchar',
+          'length'      => 255,
+          'not null'    => TRUE,
+          'description' => 'id',
+        ),
+      ),
+      MigrateDestinationNode::getKeySchema()
+    );
 
     $this->destination = new MigrateDestinationNode('dataset', array('text_format' => 'html'));
 
@@ -67,6 +68,7 @@ class MigrateCkanDatasetBase extends MigrateCkanBase {
     $this->addFieldMapping('field_tags', 'tag_names');
     $this->addFieldMapping('field_additional_info', 'field_additional_info_key');
     $this->addFieldMapping('field_additional_info:second', 'field_additional_info_value');
+    $this->addFieldMapping('field_organization_ref', 'organization_id');
   }
 
   /**
@@ -74,42 +76,43 @@ class MigrateCkanDatasetBase extends MigrateCkanBase {
    */
   public function getCkanDatasetFields() {
     return array(
-      "license_title" => "License Title",
-      "maintainer" => "Maintainer",
-      "relationships_as_object" => "",
-      "private" => "Private",
-      "maintainer_email" => "",
-      "revision_timestamp" => "Revision Date",
-      "id" => "UUID",
-      "metadata_created" => "Created Date",
-      "metadata_modified" => "Modified Date",
-      "author" => "Author",
-      "author_email" => "Author Email",
-      "state" => "State",
-      "version" => "Version",
-      "creator_user_id" => "Author UUID",
-      "type" => "Node Type",
-      "resources" => "Resources",
-      "num_resources" => "Number of Resources",
-      "tag_names" => "Tags",
-      "tracking_summary" => "Tracking Summary",
-      "groups" => "Groups",
-      "license_id" => "Licence ID",
+      "license_title"            => "License Title",
+      "maintainer"               => "Maintainer",
+      "relationships_as_object"  => "",
+      "private"                  => "Private",
+      "maintainer_email"         => "",
+      "revision_timestamp"       => "Revision Date",
+      "id"                       => "UUID",
+      "metadata_created"         => "Created Date",
+      "metadata_modified"        => "Modified Date",
+      "author"                   => "Author",
+      "author_email"             => "Author Email",
+      "state"                    => "State",
+      "version"                  => "Version",
+      "creator_user_id"          => "Author UUID",
+      "type"                     => "Node Type",
+      "resources"                => "Resources",
+      "num_resources"            => "Number of Resources",
+      "tag_names"                => "Tags",
+      "tracking_summary"         => "Tracking Summary",
+      "groups"                   => "Groups",
+      "license_id"               => "Licence ID",
       "relationships_as_subject" => "",
-      "num_tags" => "Number of Tags",
-      "organization" => "Organization",
-      "name" => "Name slug",
-      "isopen" => "Is Open (bollean)",
-      "url" => "URL",
-      "notes" => "Description",
-      "owner_org" => "Owner Organization",
-      "extras" => "Extras",
-      "title" => "Title",
-      "revision_id" => "Revision ID",
+      "num_tags"                 => "Number of Tags",
+      "organization"             => "Organization",
+      "name"                     => "Name slug",
+      "isopen"                   => "Is Open (bollean)",
+      "url"                      => "URL",
+      "notes"                    => "Description",
+      "owner_org"                => "Owner Organization",
+      "extras"                   => "Extras",
+      "title"                    => "Title",
+      "revision_id"              => "Revision ID",
       // This doesn't actually exist but we are adding it later in prepareRow.
-      "uid" => "User ID",
-      "resource_ids" => "Resource IDS",
-        "group_ids" => "Group IDS",
+      "uid"                      => "User ID",
+      "resource_ids"             => "Resource IDS",
+      "group_ids"                => "Group IDS",
+      "organization_id"          => "Organization ID",
     );
   }
 
@@ -117,8 +120,8 @@ class MigrateCkanDatasetBase extends MigrateCkanBase {
    * Implements prepareRow.
    */
   public function prepareRow($row) {
-    $row->uid = $this->getUser($row->creator_user_id);
-    $row->name = 'dataset/' . $row->name;
+    $row->uid          = $this->getUser($row->creator_user_id);
+    $row->name         = 'dataset/' . $row->name;
     $row->resource_ids = array();
 
     if (isset($row->resources)) {
@@ -141,10 +144,14 @@ class MigrateCkanDatasetBase extends MigrateCkanBase {
       }
     }
 
+    if (isset($row->organization)) {
+      $row->organization_id = $this->getOrganizationId($row->organization->id);
+    }
+
     // Get unix timestamp values for dates.
-    $row->metadata_created = $this->StringToTime($row->metadata_created);
+    $row->metadata_created  = $this->StringToTime($row->metadata_created);
     $row->metadata_modified = $this->StringToTime($row->metadata_modified);
-    $row->spatialText = NULL;
+    $row->spatialText       = NULL;
     if (isset($row->extras)) {
       foreach ($row->extras as $extra) {
         if ($extra->key == 'spatial-text') {
@@ -154,7 +161,7 @@ class MigrateCkanDatasetBase extends MigrateCkanBase {
           $row->spatial = $extra->value;
         }
         else {
-          $row->field_additional_info_key[] = $extra->key;
+          $row->field_additional_info_key[]   = $extra->key;
           $row->field_additional_info_value[] = $extra->value;
         }
       }
@@ -168,11 +175,11 @@ class MigrateCkanDatasetBase extends MigrateCkanBase {
     $node->uuid = $row->id;
     // Turn off pathauto for import and set path.
     $node->path['pathauto'] = FALSE;
-    $node->path['alias'] = $row->name;
+    $node->path['alias']    = $row->name;
     // Converts geojson spatial for saving field.
     if (isset($node->field_spatial[$node->language][0]['wkt']) && $spatial = $node->field_spatial[$node->language][0]['wkt']) {
-      $geophp = geophp_load();
-      $geometry = geoPHP::load($spatial, 'json');
+      $geophp                                  = geophp_load();
+      $geometry                                = geoPHP::load($spatial, 'json');
       $node->field_spatial[$node->language][0] = geofield_get_values_from_geometry($geometry);
     }
   }
