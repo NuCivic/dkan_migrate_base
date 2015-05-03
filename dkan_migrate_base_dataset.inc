@@ -75,7 +75,7 @@ class MigrateCkanDatasetBase extends MigrateCkanBase {
   public function getCkanDatasetFields() {
     return array(
       "license_title" => "License Title",
-      "maintainer" => "Maintaier",
+      "maintainer" => "Maintainer",
       "relationships_as_object" => "",
       "private" => "Private",
       "maintainer_email" => "",
@@ -109,7 +109,7 @@ class MigrateCkanDatasetBase extends MigrateCkanBase {
       // This doesn't actually exist but we are adding it later in prepareRow.
       "uid" => "User ID",
       "resource_ids" => "Resource IDS",
-      "group_ids" => "Group IDS",
+        "group_ids" => "Group IDS",
     );
   }
 
