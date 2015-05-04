@@ -120,15 +120,28 @@ class MigrateCkanDatasetBase extends MigrateCkanBase {
    * Implements prepareRow.
    */
   public function prepareRow($row) {
-    $row->uid          = $this->getUser($row->creator_user_id);
+
+//    $start_time = time(); // TODO: REMOVE
+
+//    $row->uid          = $this->getUser($row->creator_user_id); // TODO: RESTORE
     $row->name         = 'dataset/' . $row->name;
     $row->resource_ids = array();
+
+//    $delta_time = time() - $start_time; // TODO: REMOVE
+//    echo "GetUser: $delta_time secs.\n"; // TODO: REMOVE
+
+//    $start_time = time(); // TODO: REMOVE
 
     if (isset($row->resources)) {
       foreach ($row->resources as $resource) {
         $row->resource_ids[] = $this->getResourceId($resource->id);
       }
     }
+
+//    $delta_time = time() - $start_time; // TODO: REMOVE
+//    echo "GetResourceId: $delta_time secs.\n"; // TODO: REMOVE
+
+//    $start_time = time(); // TODO: REMOVE
 
     $tags = taxonomy_vocabulary_machine_name_load('tags');
     if (isset($row->tags)) {
@@ -138,15 +151,30 @@ class MigrateCkanDatasetBase extends MigrateCkanBase {
       }
     }
 
+//    $delta_time = time() - $start_time; // TODO: REMOVE
+//    echo "Taxonomy: $delta_time secs.\n"; // TODO: REMOVE
+//
+//    $start_time = time(); // TODO: REMOVE
+
     if (isset($row->groups)) {
       foreach ($row->groups as $group) {
         $row->group_ids[] = $this->getGroupId($group->id);
       }
     }
 
+//    $delta_time = time() - $start_time; // TODO: REMOVE
+//    echo "GetGroupId: $delta_time secs.\n"; // TODO: REMOVE
+//
+//    $start_time = time(); // TODO: REMOVE
+
     if (isset($row->organization)) {
       $row->organization_id = $this->getOrganizationId($row->organization->id);
     }
+
+//    $delta_time = time() - $start_time; // TODO: REMOVE
+//    echo "GetOrganizationId: $delta_time secs.\n"; // TODO: REMOVE
+//
+//    $start_time = time(); // TODO: REMOVE
 
     // Get unix timestamp values for dates.
     $row->metadata_created  = $this->StringToTime($row->metadata_created);
@@ -166,6 +194,9 @@ class MigrateCkanDatasetBase extends MigrateCkanBase {
         }
       }
     }
+
+//    $delta_time = time() - $start_time; // TODO: REMOVE
+//    echo "Spatial: $delta_time secs.\n"; // TODO: REMOVE
   }
 
   /**
