@@ -22,6 +22,7 @@ class MigrateCkanDatasetBase extends MigrateCkanBase {
     $item_url = $this->endpoint . $item_url;
     $this->page = isset($arguments['page']) ? $arguments['page'] : '';
     $this->offset = isset($arguments['offset']) ? $arguments['offset'] : '';
+    $this->ids = isset($arguments['ids']) ? $arguments['ids'] : '';
 
     $this->highwaterField = array(
       'name' => 'revision_timestamp',
@@ -31,6 +32,7 @@ class MigrateCkanDatasetBase extends MigrateCkanBase {
       $list_url,
       array('page' => $this->page,
             'offset' => $this->offset,
+            'ids' => $this->ids,
       )
     ),
     new CKANItemJSON($item_url, $fields), $fields);
@@ -51,7 +53,6 @@ class MigrateCkanDatasetBase extends MigrateCkanBase {
     $this->destination = new MigrateDestinationNode('dataset', array('text_format' => 'html'));
 
     $this->addDefaultDatasetMappings();
-
   }
 
   /**

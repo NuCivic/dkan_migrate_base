@@ -47,7 +47,9 @@ class CKANListJSON extends MigrateListJSON {
     $this->httpOptions = $http_options;
     $this->page = isset($http_options['page']) ? $http_options['page'] : '';
     $this->offset = isset($http_options['offset']) ? $http_options['offset'] : '';
+    $this->ids = isset($http_options['ids']) ? $http_options['ids'] : '';
   }
+
   /**
    * The default implementation assumes the IDs are top-level array elements.
    */
@@ -77,6 +79,9 @@ class CKANListJSON extends MigrateListJSON {
    */
   public function getIdList() {
     migrate_instrument_start("Retrieve $this->listUrl");
+    if ($this->ids) {
+      return $this->ids;
+    }
 
     if (substr($this->listUrl, 0, 6) == 'public') {
       $json = file_get_contents($this->listUrl);
@@ -101,6 +106,9 @@ class CKANListJSON extends MigrateListJSON {
    * Implements computeCount().
    */
   public function computeCount() {
+    if ($this->ids) {
+      return count($this->ids);
+    }
     $count = 0;
     if (empty($this->httpOptions)) {
       $json = file_get_contents($this->listUrl);
@@ -228,9 +236,12 @@ abstract class MigrateDKAN extends Migration {
    * Prepare row for Datasets.
    */
   public function datasetPrepareRow(&$row) {
-    $row->uid = $this->getUser($row->creator_user_id);
+    $row->uid = isset($row->creator_user_id) ? $this->getUser($row->creator_user_id) : 1;
     $row->name = 'dataset/' . $row->name;
     $row->resource_ids = array();
+    // If there is no revision timestamp an error is thrown as it is the
+    // highwater mark. Put in a low highwater mark instead.
+    $row->revision_timestamp = isset($row->revision_timestamp) ? $row->revision_timestamp : 0;
 
     if (isset($row->resources)) {
       foreach ($row->resources as $resource) {
@@ -241,7 +252,7 @@ abstract class MigrateDKAN extends Migration {
     $tags = taxonomy_vocabulary_machine_name_load('tags');
     if (isset($row->tags)) {
       foreach ($row->tags as $tag) {
-        $this->createTax($tag->name, 'tags', $tags->vid);
+        $tag = $this->createTax($tag->name, 'tags', $tags->vid);
         $row->tag_names[] = $tag->name;
       }
     }
@@ -253,8 +264,8 @@ abstract class MigrateDKAN extends Migration {
     }
 
     // Get unix timestamp values for dates.
-    $row->metadata_created = strtotime($row->metadata_created);
-    $row->metadata_modified = strtotime($row->metadata_modified);
+    $row->metadata_created = isset($row->metadata_created) ? strtotime($row->metadata_created) : '';
+    $row->metadata_modified = isset($row->metadata_modified) ? strtotime($row->metadata_modified) : '';
     $row->spatialText = NULL;
     if (isset($row->extras)) {
       foreach ($row->extras as $extra) {
@@ -265,8 +276,8 @@ abstract class MigrateDKAN extends Migration {
           $row->spatial = $extra->value;
         }
         else {
-          $row->field_additional_info_key[] = $extra->key;
-          $row->field_additional_info_value[] = $extra->value;
+          $row->field_additional_info_key[] = substr($extra->key, 0, 254);
+          $row->field_additional_info_value[] = substr($extra->value, 0, 254);
         }
       }
     }
@@ -298,7 +309,13 @@ abstract class MigrateDKAN extends Migration {
   public function createAndMapResources(&$row) {
     if (isset($row->resources)) {
       foreach ($row->resources as $num => $resource) {
-        $resource_node = $this->createResourceNode($resource);
+        // Node already exists.
+        if ($nid = $this->getResourceId($resource->id)) {
+          $resource_node = node_load($nid);
+        }
+        else {
+          $resource_node = $this->createResourceNode($resource);
+        }
         // Adds the node to the map. This means that when the migration is
         // rolled back that the resources are removed as well. This adds the
         // newly created uuids and nids to the migrate_map_data_json table.
@@ -314,13 +331,16 @@ abstract class MigrateDKAN extends Migration {
     // TODO: Check high water mark.
 
     global $user;
+    // This is necessary for group permissions. If there is not a properly
+    // permissioned user, ie if done from the command line, the group creation
+    // fails.
+    $user = user_load(1);
     $node = new stdClass();
     $node->is_new = TRUE;
     $node->language = 'und';
-    $node->uid = $user->uid;
+    $node->uid = $user->uid ? $user->uid : 1;
     $node->type = 'group';
     $node->title = $group->title;
-    $node->uuid = $group->id;
     $node->body['und'][0]['safe_value'] = $group->description;
     if ($group->image_display_url) {
       $name = explode('/', $group->image_display_url->url);
@@ -329,14 +349,24 @@ abstract class MigrateDKAN extends Migration {
       $file = $this->downloadExternalFile($group->image_display_url, $uri);
       $node->field_image['und'][0] = $file;
     }
+    $node->uuid = $group->id;
     node_save($node);
     return $node;
+  }
+
+  public function createFormatTid($format) {
+    $format_vocab = taxonomy_vocabulary_machine_name_load('format');
+    $this->createTax($format, 'format', $format_vocab->vid);
+    $tax = taxonomy_get_term_by_name($format, 'format', $format_vocab->vid);
+    $tid = array_keys($tax);
+    return $tid[0];
   }
 
   /**
    * Creates resource node.
    */
   public function createResourceNode($res) {
+
     // TODO: Check high water mark.
     // TODO: Check if UUID exits.
 
@@ -346,36 +376,78 @@ abstract class MigrateDKAN extends Migration {
     $node = new stdClass();
     $node->is_new = TRUE;
     $node->language = 'und';
-    $node->uid = $user->uid;
+    $node->uid = $user->uid ? $user->uid : 1;
     $node->type = 'resource';
-    $node->title = $res->name;
+    $node->title = $res->name ? $res->name : $res->url;
     $node->uuid = $res->id;
     $node->body = $res->description;
     $res->format = strtolower($res->format);
     $node->changed = $res->created;
     if (isset($res->format)) {
-      $format_vocab = taxonomy_vocabulary_machine_name_load('format');
-      $this->createTax($res->format, 'format', $format_vocab->vid);
-      $tax = taxonomy_get_term_by_name($res->format, 'format', $format_vocab->vid);
-      $tid = array_keys($tax);
-      if ($tid[0]) {
-        $node->field_format['und'][0]['tid'] = $tid[0];
-      }
+      $node->field_format['und'][0]['tid'] = $this->createFormatTid($res->format);
     }
-    $file = remote_stream_wrapper_file_load_by_uri($res->url);
+
     // Create a link to file for certain formats.
     if ($res->format == 'csv' || $res->format == 'zip') {
+      $file = remote_stream_wrapper_file_load_by_uri($res->url);
       if (!$file) {
-        $file = remote_stream_wrapper_file_create_by_uri($res->url);
-        $file->status = FALSE;
-        file_save($file);
+        $req = drupal_http_request($res->url, array('timeout' => 5));
+        if ($req->code == 200) {
+          $mime = substr($req->headers['content-type'], 0, strpos($req->headers['content-type'], ";"));
+          if ($type = recline_get_data_type($mime)) {
+            $link_field = field_info_instance('node', 'field_link_remote_file', 'resource');
+            $ext = explode(' ', $link_field['settings']['file_extensions']);
+            if (in_array($type, $ext) && isset($req->headers['content-length'])
+              // html can be listed as a file type for the remote file field but
+              // shouldn't be imported.
+              && $type != 'html') {
+              $file = remote_stream_wrapper_file_create_by_uri($res->url);
+              $file->status = FALSE;
+              file_save($file);
+            }
+          }
+        }
       }
-      $node->field_link_remote_file['und'][0]['fid'] = $file->fid;
-      $node->field_link_remote_file['und'][0]['display'] = 1;
+      if ($file) {
+        $node->field_link_remote_file['und'][0]['fid'] = $file->fid;
+        $node->field_link_remote_file['und'][0]['display'] = 1;
+      }
     }
     else {
+      $req = drupal_http_request($res->url, array('timeout' => 5));
+      if ($req->code == 200) {
+        $mime = substr($req->headers['content-type'], 0, strpos($req->headers['content-type'], ";"));
+        if ($type = recline_get_data_type($mime)) {
+          $node->field_format['und'][0]['tid'] = $this->createFormatTid($type);
+          $link_field = field_info_instance('node', 'field_link_remote_file', 'resource');
+          $ext = explode(' ', $link_field['settings']['file_extensions']);
+          // html can be listed as a file type for the remote file field but
+          // shouldn't be imported.
+          if (in_array($type, $ext) && isset($req->headers['content-length']) && $type != 'html') {
+            $file = remote_stream_wrapper_file_load_by_uri($res->url);
+            if (!$file) {
+              $file = remote_stream_wrapper_file_create_by_uri($res->url);
+              $file->status = FALSE;
+              if (isset($req->headers['content-disposition']) && $req->headers['content-disposition'] && $cd = explode( '; ', $req->headers['content-disposition'])) {
+                if (is_array($cd)) {
+                  foreach ($cd as $item) {
+                    if ($name =  str_replace('filename=', '',$item)) {
+                      $file->filename = $name;
+                    }
+                  }
+                }
+              }
+              file_save($file);
+            }
+            $node->field_link_remote_file['und'][0]['fid'] = $file->fid;
+            $node->field_link_remote_file['und'][0]['display'] = 1;
+          }
+        }
+      }
+    }
+    if (!isset($node->field_link_remote_file['und'][0]['fid'])) {
       // Link to API for all others.
-      $node->field_link_api['und'][0]['url'] = $dist->accessURL;
+      $node->field_link_api['und'][0]['url'] = $res->url;
     }
     node_save($node);
     return $node;
@@ -414,48 +486,6 @@ abstract class MigrateDKAN extends Migration {
       $node->field_spatial[$node->language][0] = geofield_get_values_from_geometry($geometry);
     }
   }
-
-  /**
-   * Looks up user if they exist, if not creates them.
-   *
-   * @param string $creator_user_id
-   *   UUID for user from CKAN.
-   *
-   * @return string
-   *   Drupal user_id (uid).
-   */
-  public function getUser($creator_user_id) {
-    if (isset($creator_user_id) && $creator_user_id) {
-      if ($uid = entity_get_id_by_uuid('user', array($creator_user_id))) {
-        return $uid[$creator_user_id];
-      }
-      else {
-        $new_user = array(
-          'uuid' => $creator_user_id,
-        );
-        // Get User name from CKAN API.
-        $response = drupal_http_request($this->endpoint . 'user_show?id=' .  $creator_user_id);
-        $json = $response->data;
-        $data = drupal_json_decode($json);
-        if ($name = $data['result']['name']) {
-          $current_uid = db_query("SELECT uid from {users} WHERE name = :name", array(":name" => $name))->fetchField();
-          if ($current_uid) {
-            $account = user_load($current_uid);
-            return $account->uid;
-          }
-          else {
-            $new_user['name'] = $name;
-            $account = user_save(NULL, $new_user);
-            return $account->uid;
-          }
-        }
-        else {
-          return 1;
-        }
-      }
-    }
-  }
-
 
   /**
    * Creates list of fields for CKAN Dataset.
@@ -500,7 +530,6 @@ abstract class MigrateDKAN extends Migration {
       "group_ids" => "Group IDS",
     );
   }
-
 
   /**
    * Looks up format if exists, if not creates it.
