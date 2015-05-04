@@ -20,24 +20,24 @@ class MigrateCkanResourceBase extends MigrateCkanBase {
     );
 
     $fields = array(
-      "name" => "Name",
-      "id" => "UUID",
-      "description" => "Description",
-      "format" => "Format",
-      "created" => "Created Date",
-      "last_modified" => "Modified Date",
-      "url" => "URL",
-      "revision_id" => "Revision ID",
+      "name"           => "Name",
+      "id"             => "UUID",
+      "description"    => "Description",
+      "format"         => "Format",
+      "created"        => "Created Date",
+      "last_modified"  => "Modified Date",
+      "url"            => "URL",
+      "revision_id"    => "Revision ID",
       // Not sure if this is just Mimetype.
       "mimetype_inner" => "Mimetype Inner",
       // This doesn't actually exist but we are adding it later in prepareRow.
-      "uid" => "User ID",
-      "file" => "file",
+      "uid"            => "User ID",
+      "file"           => "file",
     );
 
-    $list_url = isset($arguments['list_url']) ? $arguments['list_url'] : 'resource_list';
-    $item_url = isset($arguments['item_url']) ? $arguments['item_url'] : 'resource_show?id=:id';
-    $this->page = isset($arguments['page']) ? $arguments['page'] : '';
+    $list_url     = isset($arguments['list_url']) ? $arguments['list_url'] : 'resource_list';
+    $item_url     = isset($arguments['item_url']) ? $arguments['item_url'] : 'resource_show?id=:id';
+    $this->page   = isset($arguments['page']) ? $arguments['page'] : '';
     $this->offset = isset($arguments['offset']) ? $arguments['offset'] : '';
 
     if ($list_url == 'resource_list') {
@@ -59,24 +59,25 @@ class MigrateCkanResourceBase extends MigrateCkanBase {
 
     $this->source = new MigrateSourceList(new CKANListJSON(
       $list_url,
-      array('page' => $this->page,
-            'offset' => $this->offset,
+      array(
+        'page'   => $this->page,
+        'offset' => $this->offset,
       )
     ),
-    new CKANItemJSON($item_url, $fields), $fields);
+      new CKANItemJSON($item_url, $fields), $fields);
 
     $this->map = new MigrateSQLMap(
-            $this->machineName,
-            array(
-              'uuid' => array(
-                'type' => 'varchar',
-                'length' => 255,
-                'not null' => TRUE,
-                'description' => 'id',
-              ),
-            ),
-            MigrateDestinationNode::getKeySchema()
-        );
+      $this->machineName,
+      array(
+        'uuid' => array(
+          'type'        => 'varchar',
+          'length'      => 255,
+          'not null'    => TRUE,
+          'description' => 'id',
+        ),
+      ),
+      MigrateDestinationNode::getKeySchema()
+    );
 
     $this->destination = new MigrateDestinationNode('resource', array('text_format' => 'html'));
     $this->addFieldMapping('id', 'uuid');
@@ -98,30 +99,32 @@ class MigrateCkanResourceBase extends MigrateCkanBase {
     // TODO:
     // + Find way to get user name for creator of resource
     // + Improve preview for files stuck as links.
-    $row->created = $this->StringToTime($row->created);
-    $row->created = $this->StringToTime($row->last_modified);
-    $row->group_ids = array($row->resource_group_id);
+    $row->created       = $this->StringToTime($row->created);
+    $row->created       = $this->StringToTime($row->last_modified);
+    $row->group_ids     = array($row->resource_group_id);
     $row->last_modified = $this->StringToTime($row->last_modified);
 
     $row->name = $row->name ? $row->name : $row->description;
     // Tax terms in Drupal are case sensitive. It is better to have a single
     // 'html' term instead of 'html' and 'HTML'.
     // TODO: move to hook_node_update in dkan_dataset.
-    $format = taxonomy_vocabulary_machine_name_load('format');
+    $format      = taxonomy_vocabulary_machine_name_load('format');
     $row->format = strtolower($row->format);
     $this->createTax($row->format, 'format', $format->vid);
 
     // Decide which of DKAN's three fields is best for resource file.
     if ($row->url_type == 'upload' || $row->resource_type == 'file.upload' || $row->resource_type == 'file') {
-      $name = explode('/', $row->url);
-      $name = $name[count($name) - 1];
-      $uri = 'public://' . $name;
-      $file = $this->downloadExternalFile($row->url, $uri);
+      $name      = explode('/', $row->url);
+      $name      = $name[count($name) - 1];
+      $uri       = 'public://' . $name;
+
+      $file      = $this->downloadExternalFile($row->url, $uri);
+
       $row->file = $file['fid'];
     }
     else {
       // CKAN API doesn't make it clear if file is link to API or just file.
-      $field = field_info_instance('node', 'field_link_remote_file', 'resource');
+      $field      = field_info_instance('node', 'field_link_remote_file', 'resource');
       $extensions = explode(' ', $field['settings']['file_extensions']);
       if (in_array($row->format, $extensions) && $row->format != 'html') {
         $row->file_remote_link = $row->url;
@@ -137,7 +140,7 @@ class MigrateCkanResourceBase extends MigrateCkanBase {
    */
   public function prepare($node, stdClass $row) {
     // UUID doesn't show up as a field so had to do this.
-    $node->uuid = $row->id;
+    $node->uuid  = $row->id;
     $row->format = isset($row->format) && $row->format ? $row->format : 'data';
   }
 }
