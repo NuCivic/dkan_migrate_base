@@ -1,0 +1,9 @@
+{
+  "name": "dkanMigrateBase",
+  "description" : "Makes dkan migrate base",
+  "version": "0.1.0",
+  "dependencies": {
+    "grunt": "~0.4.5",
+    "grunt-template": "*"
+  }
+}
