@@ -35,6 +35,17 @@ function dkan_migrate_base_migrate_api() {
       ),
     ),
   );
+
+  if ( FALSE === node_type_get_type('organization') ) {
+    drupal_set_message(t("Organization content type not detected. MigrateCkanOrganizationBase migration not registered."));
+  } else {
+    $api['migrations']['ckan_organization_base'] = array(
+      'class_name' => 'MigrateCkanOrganizationBase',
+      'group_name' => 'dkan',
+      'title'      => t('CKAN Organization Base'),
+    );
+  }
+
   return $api;
 }
 
