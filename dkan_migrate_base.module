@@ -37,73 +37,20 @@ function dkan_migrate_base_create_resource_list($endpoint, $file_name = 'public:
 function dkan_migrate_base_create_resource_list_items($endpoint, $file_name) {
   $package_list = $endpoint . 'package_list';
   $resource_ids = array('help' => t('List of resource ids for %endpoint', array('endpoint' => $endpoint)));
-  $item_url     = $endpoint . 'package_show?id=:id';
-  $response     = drupal_http_request($package_list);
-  $json         = $response->data;
-  $data         = drupal_json_decode($json);
-
-  // Buffer for the URLs to query.
-  $urls = array();
-
+  $item_url = $endpoint . 'package_show?id=:id';
+  $response = drupal_http_request($package_list);
+  $json = $response->data;
+  $data = drupal_json_decode($json);
   foreach ($data['result'] as $id) {
     $dataset_show = preg_replace(array_fill(0, count($id), '/:id/'), $id, $item_url, 1);
-
-    // Queue up the request.
-    $urls[] = $dataset_show;
+    $dataset_response = drupal_http_request($dataset_show);
+    $dataset_json = $dataset_response->data;
+    $dataset_data = drupal_json_decode($dataset_json);
+    $resources = $dataset_data['result']['resources'];
+    foreach ($resources as $key => $resource) {
+      $resource_ids['result'][] = $resource['id'];
+    }
   }
-
-
-  // Prepare the results array, it will be passed in the httprl options as a reference,
-  // so that the callback function can add the return values.
-  $resource_ids['result'] = array();
-
-  // Set the httprl call options.
-  $options = array(
-//    'async_connect'      => FALSE,
-    'domain_connections' => 25,
-    'global_connections' => 50,
-    'callback'           => array(
-      array('function' => 'dkan_migrate_base_handle_response',),
-      &$resource_ids['result']
-    ),
-    'global_timeout'     => 60,
-    'connect_timeout'    => 30,
-    'dns_timeout'        => 5,
-  );
-
-//  echo "Will retrieve " . sizeof($urls) . " URLs.\n";
-
-  while (0 < sizeof($urls)) {
-    httprl_request(array_splice($urls, 0, 1000), $options);
-    httprl_send_request();
-
-//    echo sizeof($urls) . ' ';
-  }
-
-  // Save the results.
-//  echo "Got " . sizeof($resource_ids['result']) . " resource IDs.\n";
-
   file_unmanaged_save_data(json_encode($resource_ids), $file_name, FILE_EXISTS_REPLACE);
-
   return $resource_ids;
-}
-
-function dkan_migrate_base_handle_response($response, &$results) {
-
-//  echo ".";
-
-  // Check that the response code is OK (200).
-  if ((int) $response->code !== 200) {
-    echo "An error occurred [ code :: {$response->code} ]\n";
-    return NULL;
-  }
-
-  $dataset_json = $response->data;
-  $dataset_data = drupal_json_decode($dataset_json);
-  $resources    = $dataset_data['result']['resources'];
-  foreach ($resources as $key => $resource) {
-    $results[] = $resource['id'];
-  }
-
-  return NULL;
 }
