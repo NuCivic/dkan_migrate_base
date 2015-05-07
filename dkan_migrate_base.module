@@ -23,7 +23,13 @@ function dkan_migrate_base_migrations_disable() {
 function dkan_migrate_base_create_resource_list($endpoint, $file_name = 'public://ckan-migrate-resource_list', $update = FALSE) {
   // Update if requested or the file doesn't exist.
   if ($update || (!$update && !file_exists($file_name))) {
+
+    // Uncomment this to profile the request: $start_time = time(); echo "dkan_migrate_base_create_resource_list_items [ endpoint :: $endpoint ] ...\n";
+
     $resource_ids = dkan_migrate_base_create_resource_list_items($endpoint, $file_name);
+
+    // Uncomment this to profile the request: echo "dkan_migrate_base_create_resource_list_items " . time() - $start_time . " secs\n";
+
     file_unmanaged_save_data(json_encode($resource_ids), $file_name, FILE_EXISTS_REPLACE);
   }
 }
@@ -37,20 +43,118 @@ function dkan_migrate_base_create_resource_list($endpoint, $file_name = 'public:
 function dkan_migrate_base_create_resource_list_items($endpoint, $file_name) {
   $package_list = $endpoint . 'package_list';
   $resource_ids = array('help' => t('List of resource ids for %endpoint', array('endpoint' => $endpoint)));
-  $item_url = $endpoint . 'package_show?id=:id';
-  $response = drupal_http_request($package_list);
-  $json = $response->data;
-  $data = drupal_json_decode($json);
+  $item_url     = $endpoint . 'package_show?id=:id';
+  $response     = drupal_http_request($package_list);
+  $json         = $response->data;
+  $data         = drupal_json_decode($json);
+
+  // Buffer for the URLs to query.
+  $urls = array_map(function ($id) use ($item_url) {
+    return preg_replace(array_fill(0, count($id), '/:id/'), $id, $item_url, 1);
+  }, $data['result']);
+
+  // Prepare the results array, it will be passed in the httprl options as a reference,
+  // so that the callback function can add the return values.
+  $resource_ids['result'] = array();
+
+  // Set the httprl call options.
+  $options = array(
+    'domain_connections' => 100,
+    'global_connections' => 100,
+    'callback'           => array(
+      array('function' => 'dkan_migrate_base_handle_response',),
+      &$resource_ids['result']
+    ),
+    'global_timeout'     => 60,
+    'connect_timeout'    => 30,
+    'dns_timeout'        => 5,
+  );
+
+  dkan_migrate_base_log("Parsing " . sizeof($urls) . " URLs.");
+
+  // Queue requests while there are URLs.
+  while (0 < sizeof($urls)) {
+    httprl_request(array_splice($urls, 0, 500), $options); // Process URLs with batch of 1.000 URLs.
+    httprl_send_request();
+
+    dkan_migrate_base_log(sizeof($urls) . " URLs remaining.");
+  }
+
+  dkan_migrate_base_log(sizeof($resource_ids['result']) . " resources retrieved.");
+
+  file_unmanaged_save_data(json_encode($resource_ids), $file_name, FILE_EXISTS_REPLACE);
+  return $resource_ids;
+}
+
+/**
+ * Restrieves resource list from CKAN site.
+ *
+ * @return array
+ *   List of resource uuids.
+ */
+function dkan_migrate_base_create_resource_list_items_sync($endpoint, $file_name) {
+  $package_list = $endpoint . 'package_list';
+  $resource_ids = array('help' => t('List of resource ids for %endpoint', array('endpoint' => $endpoint)));
+  $item_url     = $endpoint . 'package_show?id=:id';
+  $response     = drupal_http_request($package_list);
+  $json         = $response->data;
+  $data         = drupal_json_decode($json);
   foreach ($data['result'] as $id) {
-    $dataset_show = preg_replace(array_fill(0, count($id), '/:id/'), $id, $item_url, 1);
+    $dataset_show     = preg_replace(array_fill(0, count($id), '/:id/'), $id, $item_url, 1);
     $dataset_response = drupal_http_request($dataset_show);
-    $dataset_json = $dataset_response->data;
-    $dataset_data = drupal_json_decode($dataset_json);
-    $resources = $dataset_data['result']['resources'];
+    $dataset_json     = $dataset_response->data;
+    $dataset_data     = drupal_json_decode($dataset_json);
+    $resources        = $dataset_data['result']['resources'];
     foreach ($resources as $key => $resource) {
       $resource_ids['result'][] = $resource['id'];
     }
   }
   file_unmanaged_save_data(json_encode($resource_ids), $file_name, FILE_EXISTS_REPLACE);
   return $resource_ids;
+}
+
+
+/**
+ * Receive a completed response and the current results array.
+ *
+ * @param object $response A completed request from httprl holding the response data.
+ * @param array $results An array of results with the resources IDs.
+ */
+function dkan_migrate_base_handle_response($response, &$results) {
+
+  // Check that the response code is OK (200).
+  if ((int) $response->code !== 200) {
+
+    // TODO: retry.
+
+    dkan_migrate_base_log("An error occurred [ url :: $response->url ][ code :: $response->code ].", 'warning');
+    return;
+  }
+
+  // If the response data is not set, log a warning and return.
+  if (!isset($response->data)) {
+    dkan_migrate_base_log("Received an empty response.", 'warning');
+    return;
+  }
+
+  $dataset_json = $response->data;
+  $dataset_data = drupal_json_decode($dataset_json);
+
+  // If the response data doesn't include the required data, log a warning and return.
+  if (!isset($dataset_data['result']['resources'])) {
+    dkan_migrate_base_log("Received an invalid response.", MigrationBase::MESSAGE_WARNING);
+    return;
+  }
+
+  foreach ($dataset_data['result']['resources'] as $key => $resource) {
+    $results[] = $resource['id'];
+  }
+}
+
+function dkan_migrate_base_log($message, $type = 'status') {
+
+  if (function_exists('drush_log')) {
+    drush_log($message, $type);
+  }
+
 }
