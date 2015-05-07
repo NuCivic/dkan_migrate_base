@@ -37,7 +37,12 @@ class MigrateCkanResourceBase extends MigrateCkanBase {
 
     $list_url     = isset($arguments['list_url']) ? $arguments['list_url'] : 'resource_list';
     $item_url     = isset($arguments['item_url']) ? $arguments['item_url'] : 'resource_show?id=:id';
-    $this->page   = isset($arguments['page']) ? $arguments['page'] : '';
+
+    // Get the shared key for multi-threaded imports, or use the machine name.
+    $this->shared_key = isset($arguments['shared_key']) ? $arguments['shared_key'] : $this->machineName;
+
+    // The following are provided by the multi-threaded environment.
+    $this->limit  = isset($arguments['limit']) ? $arguments['limit'] : '';
     $this->offset = isset($arguments['offset']) ? $arguments['offset'] : '';
 
     if ($list_url == 'resource_list') {
@@ -60,14 +65,14 @@ class MigrateCkanResourceBase extends MigrateCkanBase {
     $this->source = new MigrateSourceList(new CKANListJSON(
       $list_url,
       array(
-        'page'   => $this->page,
+        'limit'  => $this->limit,
         'offset' => $this->offset,
       )
     ),
       new CKANItemJSON($item_url, $fields), $fields);
 
     $this->map = new MigrateSQLMap(
-      $this->machineName,
+      $this->shared_key,
       array(
         'uuid' => array(
           'type'        => 'varchar',
@@ -105,6 +110,9 @@ class MigrateCkanResourceBase extends MigrateCkanBase {
     $row->last_modified = $this->StringToTime($row->last_modified);
 
     $row->name = $row->name ? $row->name : $row->description;
+
+    migrate_instrument_start("taxonomy_vocabulary_machine_name_load");
+
     // Tax terms in Drupal are case sensitive. It is better to have a single
     // 'html' term instead of 'html' and 'HTML'.
     // TODO: move to hook_node_update in dkan_dataset.
@@ -112,13 +120,19 @@ class MigrateCkanResourceBase extends MigrateCkanBase {
     $row->format = strtolower($row->format);
     $this->createTax($row->format, 'format', $format->vid);
 
+    migrate_instrument_start("taxonomy_vocabulary_machine_name_load");
+
     // Decide which of DKAN's three fields is best for resource file.
     if ($row->url_type == 'upload' || $row->resource_type == 'file.upload' || $row->resource_type == 'file') {
       $name      = explode('/', $row->url);
       $name      = $name[count($name) - 1];
       $uri       = 'public://' . $name;
 
+      migrate_instrument_start("downloadExternalFile [ url :: $row->url ]");
+
       $file      = $this->downloadExternalFile($row->url, $uri);
+
+      migrate_instrument_stop("downloadExternalFile [ url :: $row->url ]");
 
       $row->file = $file['fid'];
     }
