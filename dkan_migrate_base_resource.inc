@@ -15,24 +15,11 @@ class MigrateCkanResourceBase extends MigrateCkanBase {
   public function __construct($arguments) {
     parent::__construct($arguments);
 
+    // Allow superclass to override the list of fields.
+    $fields = $this->getCkanResourceFields();
+
     $this->highwaterField = array(
       'name' => 'revision_timestamp',
-    );
-
-    $fields = array(
-      "name"           => "Name",
-      "id"             => "UUID",
-      "description"    => "Description",
-      "format"         => "Format",
-      "created"        => "Created Date",
-      "last_modified"  => "Modified Date",
-      "url"            => "URL",
-      "revision_id"    => "Revision ID",
-      // Not sure if this is just Mimetype.
-      "mimetype_inner" => "Mimetype Inner",
-      // This doesn't actually exist but we are adding it later in prepareRow.
-      "uid"            => "User ID",
-      "file"           => "file",
     );
 
     $list_url     = isset($arguments['list_url']) ? $arguments['list_url'] : 'resource_list';
@@ -156,5 +143,23 @@ class MigrateCkanResourceBase extends MigrateCkanBase {
     // UUID doesn't show up as a field so had to do this.
     $node->uuid  = $row->id;
     $row->format = isset($row->format) && $row->format ? $row->format : 'data';
+  }
+
+  public function getCkanResourceFields() {
+    return array(
+      "name"           => "Name",
+      "id"             => "UUID",
+      "description"    => "Description",
+      "format"         => "Format",
+      "created"        => "Created Date",
+      "last_modified"  => "Modified Date",
+      "url"            => "URL",
+      "revision_id"    => "Revision ID",
+      // Not sure if this is just Mimetype.
+      "mimetype_inner" => "Mimetype Inner",
+      // This doesn't actually exist but we are adding it later in prepareRow.
+      "uid"            => "User ID",
+      "file"           => "file",
+    );
   }
 }
