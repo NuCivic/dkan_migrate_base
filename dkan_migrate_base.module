@@ -12,6 +12,11 @@ function dkan_migrate_base_migrations_disable() {
   Migration::deregisterMigration('ckan_dataset_base');
   Migration::deregisterMigration('ckan_group_base');
   Migration::deregisterMigration('ckan_resource_base');
+
+  // Deregister the Organization migration if registered.
+  if (MigrationBase::getInstance('ckan_organization_base')) {
+    Migration::deregisterMigration('ckan_organization_base');
+  }
 }
 
 /**
@@ -41,12 +46,35 @@ function dkan_migrate_base_create_resource_list($endpoint, $file_name = 'public:
  *   List of resource uuids.
  */
 function dkan_migrate_base_create_resource_list_items($endpoint, $file_name) {
+
+  // Get the list of packages (datasets).
   $package_list = $endpoint . 'package_list';
   $resource_ids = array('help' => t('List of resource ids for %endpoint', array('endpoint' => $endpoint)));
   $item_url     = $endpoint . 'package_show?id=:id';
   $response     = drupal_http_request($package_list);
   $json         = $response->data;
   $data         = drupal_json_decode($json);
+
+  // Use httprl_request if available.
+  $resource_ids['result'] = (function_exists('httprl_request')
+    ? dkan_migrate_base_create_resource_list_items_httprl($item_url, $data)
+    : dkan_migrate_base_create_resource_list_items_std($item_url, $data));
+
+  // Store the results to a local file.
+  file_unmanaged_save_data(json_encode($resource_ids), $file_name, FILE_EXISTS_REPLACE);
+
+  return $resource_ids;
+}
+
+/**
+ * Retrieve the list of resources from CKAN using httprl.
+ *
+ * @param string $item_url The URL to the single dataset (with the :id placeholder).
+ * @param array $data The list of datasets.
+ *
+ * @return array The list of resources IDs.
+ */
+function dkan_migrate_base_create_resource_list_items_httprl($item_url, $data) {
 
   // Buffer for the URLs to query.
   $urls = array_map(function ($id) use ($item_url) {
@@ -55,7 +83,7 @@ function dkan_migrate_base_create_resource_list_items($endpoint, $file_name) {
 
   // Prepare the results array, it will be passed in the httprl options as a reference,
   // so that the callback function can add the return values.
-  $resource_ids['result'] = array();
+  $results = array();
 
   // Set the httprl call options.
   $options = array(
@@ -63,7 +91,7 @@ function dkan_migrate_base_create_resource_list_items($endpoint, $file_name) {
     'global_connections' => 100,
     'callback'           => array(
       array('function' => 'dkan_migrate_base_handle_response',),
-      &$resource_ids['result']
+      &$results
     ),
     'global_timeout'     => 60,
     'connect_timeout'    => 30,
@@ -80,25 +108,23 @@ function dkan_migrate_base_create_resource_list_items($endpoint, $file_name) {
     dkan_migrate_base_log(sizeof($urls) . " URLs remaining.");
   }
 
-  dkan_migrate_base_log(sizeof($resource_ids['result']) . " resources retrieved.");
+  dkan_migrate_base_log(sizeof($results) . " resources retrieved.");
 
-  file_unmanaged_save_data(json_encode($resource_ids), $file_name, FILE_EXISTS_REPLACE);
-  return $resource_ids;
+  return $results;
 }
 
 /**
  * Restrieves resource list from CKAN site.
  *
- * @return array
- *   List of resource uuids.
+ * @param string $item_url The URL to the single dataset (with the :id placeholder).
+ * @param array $data The list of datasets.
+ *
+ * @return array The list of resources IDs.
  */
-function dkan_migrate_base_create_resource_list_items_sync($endpoint, $file_name) {
-  $package_list = $endpoint . 'package_list';
-  $resource_ids = array('help' => t('List of resource ids for %endpoint', array('endpoint' => $endpoint)));
-  $item_url     = $endpoint . 'package_show?id=:id';
-  $response     = drupal_http_request($package_list);
-  $json         = $response->data;
-  $data         = drupal_json_decode($json);
+function dkan_migrate_base_create_resource_list_items_std($item_url, $data) {
+
+  $results = array();
+
   foreach ($data['result'] as $id) {
     $dataset_show     = preg_replace(array_fill(0, count($id), '/:id/'), $id, $item_url, 1);
     $dataset_response = drupal_http_request($dataset_show);
@@ -106,11 +132,11 @@ function dkan_migrate_base_create_resource_list_items_sync($endpoint, $file_name
     $dataset_data     = drupal_json_decode($dataset_json);
     $resources        = $dataset_data['result']['resources'];
     foreach ($resources as $key => $resource) {
-      $resource_ids['result'][] = $resource['id'];
+      $results[] = $resource['id'];
     }
   }
-  file_unmanaged_save_data(json_encode($resource_ids), $file_name, FILE_EXISTS_REPLACE);
-  return $resource_ids;
+
+  return $results;
 }
 
 
