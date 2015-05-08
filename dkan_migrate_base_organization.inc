@@ -2,11 +2,11 @@
 
 /**
  * @file
- * Migration Class for Groups
+ * Migration Class for Organizations
  */
 
 /**
- * Migrate CKAN group
+ * Migrate CKAN organization
  */
 class MigrateCkanOrganizationBase extends MigrateCkanBase {
   /**
