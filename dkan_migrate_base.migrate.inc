@@ -454,40 +454,6 @@ abstract class MigrateDKAN extends Migration {
   }
 
   /**
-   * Looks up nid for resource.
-   */
-  public function getResourceId($uuid) {
-    if ($nid = entity_get_id_by_uuid('node', array($uuid))) {
-      return $nid[$uuid];
-    }
-  }
-
-  /**
-   * Looks up nid for group.
-   */
-  public function getGroupId($uuid) {
-    if ($nid = entity_get_id_by_uuid('node', array($uuid))) {
-      return $nid[$uuid];
-    }
-  }
-
-  /**
-   * Prepare for Datasets.
-   */
-  public function datasetPrepare(&$node, &$row) {
-    $node->uuid = $row->id;
-    // Turn off pathauto for import and set path.
-    $node->path['pathauto'] = FALSE;
-    $node->path['alias'] = $row->name;
-    // Converts geojson spatial for saving field.
-    if (isset($node->field_spatial[$node->language][0]['wkt']) && $spatial = $node->field_spatial[$node->language][0]['wkt']) {
-      $geophp = geophp_load();
-      $geometry = geoPHP::load($spatial, 'json');
-      $node->field_spatial[$node->language][0] = geofield_get_values_from_geometry($geometry);
-    }
-  }
-
-  /**
    * Creates list of fields for CKAN Dataset.
    */
   public function getCkanDatasetFields() {
