@@ -178,8 +178,9 @@ class MigrateCkanDatasetBase extends MigrateCkanBase {
         elseif ($extra->key == 'spatial') {
           $row->spatial = $extra->value;
         }
-        else {
-          $row->field_additional_info_key[] = $extra->key;
+        elseif (!empty($extra->value)) {
+          $row->field_additional_info_key[]   = $extra->key;
+          $row->field_additional_info_value[] = $extra->value;
         }
       }
     }
