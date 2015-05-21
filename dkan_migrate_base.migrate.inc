@@ -227,7 +227,7 @@ class CKANItemJSON extends MigrateItemJSON {
     $retries = 0;
     while (200 !== (int)$response->code && 5 > $retries++){
       sleep(5);
-      echo("Retrying [ url :: $item_url ][ response code :: $response->code ][ retries :: $retries ]\n");
+      // echo("Retrying [ url :: $item_url ][ response code :: $response->code ][ retries :: $retries ]\n");
       $response = drupal_http_request($item_url, empty($this->httpOptions) ? array() : $this->httpOptions);
     }
 
