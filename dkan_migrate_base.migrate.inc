@@ -212,6 +212,30 @@ class CKANItemJSON extends MigrateItemJSON {
   }
 
   /**
+   * Override the superclass loadJSONUrl in order to use the standard {@link drupal_http_request}
+   * and retry if the remote system returns an error. Current settings are to
+   * retry every 5 secs. for a total of 5 times top.
+   *
+   * @param string $item_url The item URL.
+   *
+   * @return mixed The object instance.
+   */
+  public function loadJSONUrl($item_url) {
+
+    $response = drupal_http_request($item_url, empty($this->httpOptions) ? array() : $this->httpOptions);
+
+    $retries = 0;
+    while (200 !== (int)$response->code && 5 > $retries++){
+      sleep(5);
+      echo("Retrying [ url :: $item_url ][ response code :: $response->code ][ retries :: $retries ]\n");
+      $response = drupal_http_request($item_url, empty($this->httpOptions) ? array() : $this->httpOptions);
+    }
+
+    $json     = $response->data;
+    return json_decode($json);
+  }
+
+  /**
    * Creates a stub entry.
    */
   public function emptyItem($id) {

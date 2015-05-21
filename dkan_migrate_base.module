@@ -152,8 +152,7 @@ function dkan_migrate_base_handle_response($response, &$results, &$urls) {
   // Check that the response code is OK (200).
   if ((int) $response->code !== 200) {
 
-    // TODO: retry.
-    // Put the URL back to the URLs array.
+    // Put the URL back to the URLs to process, so we don't loose one single call.
     $urls[] = $response->url;
 
     dkan_migrate_base_log("An error occurred [ url :: $response->url ][ code :: $response->code ].", 'warning');
