@@ -91,7 +91,8 @@ function dkan_migrate_base_create_resource_list_items_httprl($item_url, $data) {
     'global_connections' => 100,
     'callback'           => array(
       array('function' => 'dkan_migrate_base_handle_response',),
-      &$results
+      &$results,
+      &$urls,
     ),
     'global_timeout'     => 60,
     'connect_timeout'    => 30,
@@ -146,12 +147,14 @@ function dkan_migrate_base_create_resource_list_items_std($item_url, $data) {
  * @param object $response A completed request from httprl holding the response data.
  * @param array $results An array of results with the resources IDs.
  */
-function dkan_migrate_base_handle_response($response, &$results) {
+function dkan_migrate_base_handle_response($response, &$results, &$urls) {
 
   // Check that the response code is OK (200).
   if ((int) $response->code !== 200) {
 
     // TODO: retry.
+    // Put the URL back to the URLs array.
+    $urls[] = $response->url;
 
     dkan_migrate_base_log("An error occurred [ url :: $response->url ][ code :: $response->code ].", 'warning');
     return;
