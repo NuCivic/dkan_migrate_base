@@ -66,6 +66,9 @@ class CKANListJSON extends MigrateListJSON {
 
     // In order to support mtm (multi-threaded migrate) we need to get the *limit* parameter (NULL equals no limit).
     $this->limit = isset($http_options['limit']) && is_numeric($http_options['limit']) ? $http_options['limit'] : NULL;
+
+    // A regex filter to select the dataset(s) to import.
+    $this->filter = !empty($http_options['filter']) ? $http_options['filter'] : NULL;
   }
 
   /**
@@ -97,15 +100,34 @@ class CKANListJSON extends MigrateListJSON {
       $response = drupal_http_request($this->listUrl, $this->httpOptions);
       $json     = $response->data;
     }
+
     migrate_instrument_stop("Retrieve $this->listUrl");
     if ($json) {
       $data = drupal_json_decode($json);
       if ($data) {
+
+        // If a filter has been specified, then apply it.
+        if (!empty($this->filter)) {
+          $data = $this->applyFilter($data);
+        }
+
         return $this->getIDsFromJSON($data);
       }
     }
     Migration::displayMessage(t('Loading of !listurl failed:', array('!listurl' => $this->listUrl)));
     return NULL;
+  }
+
+  protected function applyFilter($data) {
+
+    // Replace the results with the filtered results.
+    $data['result'] = array_filter($data['result'], function ($item) {
+      return (1 === preg_match("|$this->filter|", $item));
+    });
+
+    echo("Filtering [ after count :: " . sizeof($data['result']) . " ]");
+
+    return $data;
   }
 
   /**
@@ -225,13 +247,13 @@ class CKANItemJSON extends MigrateItemJSON {
     $response = drupal_http_request($item_url, empty($this->httpOptions) ? array() : $this->httpOptions);
 
     $retries = 0;
-    while (200 !== (int)$response->code && 5 > $retries++){
+    while (200 !== (int) $response->code && 5 > $retries++) {
       sleep(5);
       echo("Retrying [ url :: $item_url ][ response code :: $response->code ][ retries :: $retries ]\n");
       $response = drupal_http_request($item_url, empty($this->httpOptions) ? array() : $this->httpOptions);
     }
 
-    $json     = $response->data;
+    $json = $response->data;
     return json_decode($json);
   }
 
@@ -421,6 +443,10 @@ abstract class MigrateCkanBase extends MigrateDKAN {
    */
   public function __construct($arguments) {
     $this->endpoint = isset($arguments['endpoint']) ? $arguments['endpoint'] : 'http://demo.getdkan.com/api/3/action/';
+
+    // Set the regex filter if provided.
+    $this->filter = isset($arguments['filter']) ? $arguments['filter'] : '';
+
     parent::__construct($arguments);
   }
 }

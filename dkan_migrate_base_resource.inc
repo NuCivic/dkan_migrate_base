@@ -54,6 +54,7 @@ class MigrateCkanResourceBase extends MigrateCkanBase {
       array(
         'limit'  => $this->limit,
         'offset' => $this->offset,
+        'filter' => $this->filter,
       )
     ),
       new CKANItemJSON($item_url, $fields), $fields);
@@ -127,7 +128,7 @@ class MigrateCkanResourceBase extends MigrateCkanBase {
       // CKAN API doesn't make it clear if file is link to API or just file.
       $field      = field_info_instance('node', 'field_link_remote_file', 'resource');
       $extensions = explode(' ', $field['settings']['file_extensions']);
-      if (in_array($row->format, $extensions) && $row->format != 'html') {
+      if (in_array(strtolower($row->format), $extensions) && $row->format != 'html') {
         $row->file_remote_link = $row->url;
       }
       else {

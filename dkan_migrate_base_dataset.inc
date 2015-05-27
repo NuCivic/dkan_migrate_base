@@ -37,6 +37,7 @@ class MigrateCkanDatasetBase extends MigrateCkanBase {
       array(
         'limit'  => $this->limit,
         'offset' => $this->offset,
+        'filter' => $this->filter,
       )
     ),
       new CKANItemJSON($item_url, $fields), $fields);
