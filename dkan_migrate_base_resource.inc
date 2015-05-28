@@ -164,3 +164,4 @@ class MigrateCkanResourceBase extends MigrateCkanBase {
     );
   }
 }
+

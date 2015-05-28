@@ -160,6 +160,11 @@ class MigrateCkanResources extends MigrateCkanResourceBase {
   public function __construct($arguments) {
     parent::__construct($arguments);
 
+    // Check that the required resources argument is provided.
+    if (!isset($arguments['resources'])) {
+      return;
+    }
+
     // Allow superclass to override the list of fields.
     $fields = $this->getCkanResourceFields();
 
