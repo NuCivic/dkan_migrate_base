@@ -79,7 +79,7 @@ class CKANListJSON extends MigrateListJSON {
     // Get the portion of results within the specified boundaries (starting from *offset*).
     $ids = array_slice($data['result'], $this->offset, $this->limit);
 
-    $this->log("returning " . sizeof($ids) . " items [ offset :: {$this->offset} ][ limit :: " . (isset($this->limit) ? $this->limit : 'not set') . " ]");
+    $this->log("returning " . sizeof($ids) . " item(s) [ offset :: {$this->offset} ][ limit :: " . (isset($this->limit) ? $this->limit : 'not set') . " ]");
 
     return $ids;
   }
@@ -124,8 +124,6 @@ class CKANListJSON extends MigrateListJSON {
     $data['result'] = array_filter($data['result'], function ($item) {
       return (1 === preg_match("|$this->filter|", $item));
     });
-
-    echo("Filtering [ after count :: " . sizeof($data['result']) . " ]");
 
     return $data;
   }
