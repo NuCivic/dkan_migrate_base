@@ -48,6 +48,7 @@ class CKANListJSON extends MigrateListJSON {
     $this->page = isset($http_options['page']) ? $http_options['page'] : '';
     $this->offset = isset($http_options['offset']) ? $http_options['offset'] : '';
   }
+
   /**
    * The default implementation assumes the IDs are top-level array elements.
    */
@@ -55,15 +56,17 @@ class CKANListJSON extends MigrateListJSON {
     $ids = array();
     $datasets = 0;
     $total = $this->page + $this->offset;
-    foreach ($data['result'] as $item) {
-      if ($datasets < $this->offset) {
+    if (isset($data['result'])) {
+      foreach ($data['result'] as $item) {
+        if ($datasets < $this->offset) {
+          $datasets++;
+          continue;
+        }
+        $ids[] = $item;
         $datasets++;
-        continue;
-      }
-      $ids[] = $item;
-      $datasets++;
-      if ($total && $datasets >= $total) {
-        break;
+        if ($total && $datasets >= $total) {
+          break;
+        }
       }
     }
     return $ids;
@@ -85,7 +88,10 @@ class CKANListJSON extends MigrateListJSON {
       $response = drupal_http_request($this->listUrl, $this->httpOptions);
       if (isset($response->error)) {
         watchdog(
-          'dkan_migrate_base', 'See ' . __FUNCTION__ . '() Error: ' . check_plain($response->error), NULL, WATCHDOG_ERROR
+          'dkan_migrate_base',
+          'See ' . __FUNCTION__ . '() Error: ' . check_plain($response->error),
+          NULL,
+          WATCHDOG_ERROR
         );
       }
       else {
@@ -99,8 +105,12 @@ class CKANListJSON extends MigrateListJSON {
         return $this->getIDsFromJSON($data);
       }
     }
-    Migration::displayMessage(t('Loading of !listurl failed:',
-        array('!listurl' => $this->listUrl)));
+    Migration::displayMessage(
+      t(
+        'Loading of !listurl failed:',
+        array('!listurl' => $this->listUrl)
+      )
+    );
     return NULL;
   }
 
@@ -116,7 +126,10 @@ class CKANListJSON extends MigrateListJSON {
       $response = drupal_http_request($this->listUrl, $this->httpOptions);
       if (isset($response->error)) {
         watchdog(
-          'dkan_migrate_base', 'See ' . __FUNCTION__ . '() Error: ' . check_plain($response->error), NULL, WATCHDOG_ERROR
+          'dkan_migrate_base',
+          'See ' . __FUNCTION__ . '() Error: ' . check_plain($response->error),
+          NULL,
+          WATCHDOG_ERROR
         );
       }
       else {
@@ -149,6 +162,7 @@ class CKANItemJSON extends MigrateItemJSON {
     }
     return $ids;
   }
+
   /**
    * Parses for 'results' instead of base.
    */
@@ -183,8 +197,15 @@ class CKANItemJSON extends MigrateItemJSON {
       }
       if ($json && isset($json->error) && $json->error->message == 'Access denied') {
         $migration = Migration::currentMigration();
-        $message = t('Access denied for !objecturl', array('!objecturl' => $item_url));
-        $migration->getMap()->saveMessage(array($id), $message, MigrationBase::MESSAGE_ERROR);
+        $message = t(
+          'Access denied for !objecturl',
+          array('!objecturl' => $item_url)
+        );
+        $migration->getMap()->saveMessage(
+          array($id),
+          $message,
+          MigrationBase::MESSAGE_ERROR
+        );
         $result = $this->emptyItem($id);
         return $result;
       }
@@ -194,8 +215,15 @@ class CKANItemJSON extends MigrateItemJSON {
       return $json->result;
     }
     $migration = Migration::currentMigration();
-    $message = t('Loading of !objecturl failed:', array('!objecturl' => $item_url));
-    $migration->getMap()->saveMessage(array($id), $message, MigrationBase::MESSAGE_ERROR);
+    $message = t(
+      'Loading of !objecturl failed:',
+      array('!objecturl' => $item_url)
+    );
+    $migration->getMap()->saveMessage(
+      array($id),
+      $message,
+      MigrationBase::MESSAGE_ERROR
+    );
     return new stdClass();
   }
 
@@ -249,7 +277,10 @@ abstract class MigrateDKAN extends Migration {
    */
   public function getGroupNidByTitle($title) {
     $type = 'group';
-    $result = db_query("SELECT n.nid FROM {node} n WHERE n.title = :title AND n.type = :type", array(":title"=> $title, ":type"=> $type));
+    $result = db_query(
+      "SELECT n.nid FROM {node} n WHERE n.title = :title AND n.type = :type",
+      array(":title" => $title, ":type" => $type)
+    );
     $nid = $result->fetchField();
     if ($nid) {
       return $nid;
@@ -296,11 +327,16 @@ abstract class MigrateDKAN extends Migration {
           'uuid' => $creator_user_id,
         );
         // Get User name from CKAN API.
-        $response = drupal_http_request($this->endpoint . 'user_show?id=' .  $creator_user_id);
+        $response = drupal_http_request(
+          $this->endpoint . 'user_show?id=' . $creator_user_id
+        );
         $json = $response->data;
         $data = drupal_json_decode($json);
         if ($name = $data['result']['name']) {
-          $current_uid = db_query("SELECT uid from {users} WHERE name = :name", array(":name" => $name))->fetchField();
+          $current_uid = db_query(
+            "SELECT uid from {users} WHERE name = :name",
+            array(":name" => $name)
+          )->fetchField();
           if ($current_uid) {
             $account = user_load($current_uid);
             return $account->uid;
@@ -328,19 +364,28 @@ abstract class MigrateDKAN extends Migration {
    * @param int $save_mode
    *   File save mode from drupal core, ex FILE_EXISTS_REPLACE
    */
-  public function downloadExternalFile($url, $uri, $save_mode = FILE_EXISTS_RENAME, $manage_file = TRUE) {
+  public function downloadExternalFile(
+    $url,
+    $uri,
+    $save_mode = FILE_EXISTS_RENAME,
+    $manage_file = TRUE
+  ) {
 
     $url_info = parse_url($url);
     $url_path_info = pathinfo($url_info['path']);
 
     // This helps with filenames with spaces.
-    $url = $url_info['scheme'] . '://' . $url_info['host']  . $url_path_info['dirname'] . '/' . rawurlencode($url_path_info['basename']);
+    $url = $url_info['scheme'] . '://' . $url_info['host'] . $url_path_info['dirname'] . '/' . rawurlencode(
+        $url_path_info['basename']
+      );
 
     // Need to remove the filename from the uri.
     $uri_target = file_uri_target($uri);
     $uri_scheme = file_uri_scheme($uri);
     $uri_path_info = pathinfo($uri_target);
-    $directory = file_stream_wrapper_uri_normalize($uri_scheme . "://" . $uri_path_info['dirname']);
+    $directory = file_stream_wrapper_uri_normalize(
+      $uri_scheme . "://" . $uri_path_info['dirname']
+    );
 
     if (file_prepare_directory($directory, FILE_CREATE_DIRECTORY)) {
       $drupal_result = drupal_http_request($url);
@@ -350,11 +395,17 @@ abstract class MigrateDKAN extends Migration {
           $new_file = file_save_data($drupal_result->data, $path, $save_mode);
         }
         else {
-          return file_unmanaged_save_data($drupal_result->data, $path, $save_mode);
+          return file_unmanaged_save_data(
+            $drupal_result->data,
+            $path,
+            $save_mode
+          );
         }
       }
       else {
-        drupal_set_message("Error downloading file, no data recieved for " . $url);
+        drupal_set_message(
+          "Error downloading file, no data recieved for " . $url
+        );
         return FALSE;
       }
       $new_file->display = 1;
