@@ -83,10 +83,17 @@ class CKANListJSON extends MigrateListJSON {
     }
     else {
       $response = drupal_http_request($this->listUrl, $this->httpOptions);
-      $json = $response->data;
+      if (isset($response->error)) {
+        watchdog(
+          'dkan_migrate_base', 'See ' . __FUNCTION__ . '() Error: ' . check_plain($response->error), NULL, WATCHDOG_ERROR
+        );
+      }
+      else {
+        $json = $response->data;
+      }
     }
     migrate_instrument_stop("Retrieve $this->listUrl");
-    if ($json) {
+    if (isset($json)) {
       $data = drupal_json_decode($json);
       if ($data) {
         return $this->getIDsFromJSON($data);
@@ -107,11 +114,18 @@ class CKANListJSON extends MigrateListJSON {
     }
     else {
       $response = drupal_http_request($this->listUrl, $this->httpOptions);
-      $json = $response->data;
+      if (isset($response->error)) {
+        watchdog(
+          'dkan_migrate_base', 'See ' . __FUNCTION__ . '() Error: ' . check_plain($response->error), NULL, WATCHDOG_ERROR
+        );
+      }
+      else {
+        $json = $response->data;
+      }
     }
-    if ($json) {
+    if (isset($json)) {
       $data = drupal_json_decode($json);
-      if ($data) {
+      if (!empty($data) && isset($data['result'])) {
         $count = count($data['result']);
       }
     }
