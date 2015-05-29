@@ -28,7 +28,8 @@ abstract class MigrateCkanResourcesBase extends MigrateCkanDatasetBase {
     // Migrate the resources for this dataset.
     $this->migrateResources($row->resources);
 
-    parent::prepareRow($row);
+    // This method should return TRUE/FALSE (see http://www.drupalcontrib.org/api/drupal/contributions!migrate!includes!migration.inc/function/Migration::prepareRow/7)
+    return parent::prepareRow($row);
   }
 
   /**
