@@ -135,7 +135,26 @@ class MigrateCkanDatasetBase extends MigrateCkanBase {
     $row->uid = $this->getUser($row->creator_user_id);
     migrate_instrument_stop("Get user [ name :: $row->name ][ creator_user_id :: $row->creator_user_id ]");
 
-    $row->name         = 'dataset/' . $row->name;
+    $row->name = 'dataset/' . $row->name;
+
+    // Get the system path for the dataset alias and check if a node exists and
+    // whether it has the Migrate Lock field set to 1, in which case we skip the
+    // import of the node.
+    if (NULL !== ($path = drupal_lookup_path('source', $row->name))
+        && NULL !== ($node = menu_get_object($type = 'node', 1, $path))
+        && isset($node->field_migrate_lock[LANGUAGE_NONE][0]['value'])
+        && is_numeric($node->field_migrate_lock[LANGUAGE_NONE][0]['value'])
+        && 1 === (int) $node->field_migrate_lock[LANGUAGE_NONE][0]['value']
+    ) {
+
+      $this->saveMessage(
+        t('Dataset @name is locked and won\'t be imported (resources are still imported). To disable the lock clear the \'Migrate Lock\' in the node edit screen.', array('@name' => $row->name)),
+        MigrationBase::MESSAGE_INFORMATIONAL
+      );
+      return FALSE;
+    }
+
+
     $row->resource_ids = array();
 
     // Create a truncated version of the title that can fit Drupal fields max 255 characters.
