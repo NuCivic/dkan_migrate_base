@@ -164,7 +164,7 @@ class MigrateCkanDatasetBase extends MigrateCkanBase {
   /**
    * Implements prepare.
    */
-  public function prepare($node, stdClass $row) {
+  public function prepare($node, $row) {
     $node->uuid = $row->id;
     // Turn off pathauto for import and set path.
     $node->path['pathauto'] = FALSE;
