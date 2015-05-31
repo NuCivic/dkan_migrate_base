@@ -12,10 +12,17 @@ abstract class MigrateCkanResourcesBase extends MigrateCkanDatasetBase {
 
   private $machine_name = '';
 
+  // A custom class name to handle Resources imports. This class should extend
+  // MigrateCkanResources.
+  private $resources_class_name = '';
+
   public function __construct($arguments) {
     parent::__construct($arguments);
 
     $this->machine_name = $arguments['machine_name'];
+
+    // Get the Resources class name or use the default implementation.
+    $this->resources_class_name = isset($arguments['resources_class_name']) ? $arguments['resources_class_name'] : 'MigrateCkanResources';
   }
 
   /**
@@ -55,7 +62,7 @@ abstract class MigrateCkanResourcesBase extends MigrateCkanDatasetBase {
     file_unmanaged_save_data(json_encode($resources), $filename, FILE_EXISTS_REPLACE);
 
     // Register the migration, then get its instance and start it.
-    MigrationBase::registerMigration('MigrateCkanResources', $machine_name, array('resources' => $filename));
+    MigrationBase::registerMigration($this->resources_class_name, $machine_name, array('resources' => $filename));
 
     // Migrate has a static reference to the current migration that will be overwritten
     // by the following import process, therefore we save the current reference
