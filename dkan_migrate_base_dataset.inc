@@ -121,4 +121,19 @@ class MigrateCkanDatasetBase extends MigrateCkanBase {
     }
     $this->datasetPrepare($node, $row);
   }
+
+  /**
+   * Implements complete.
+   */
+  public function complete($node, stdClass $row) {
+    if (isset($row->group_ids)) {
+      $node->og_group_ref = array(
+        LANGUAGE_NONE => array(),
+      );
+      foreach ($row->group_ids as $group) {
+        $node->og_group_ref[LANGUAGE_NONE][] = array('target_id' => $group);
+      }
+    }
+    node_save($node);
+  }
 }

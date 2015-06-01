@@ -226,7 +226,7 @@ abstract class MigrateDKAN extends Migration {
     $this->addFieldMapping('field_spatial_geographical_cover', 'spatialText');
     $this->addFieldMapping('field_spatial', 'spatial');
     $this->addFieldMapping('field_resources', 'resource_ids');
-    $this->addFieldMapping('og_group_ref', 'group_ids');
+    // $this->addFieldMapping('og_group_ref', 'group_ids');
     $this->addFieldMapping('field_tags', 'tag_names');
     $this->addFieldMapping('field_additional_info', 'field_additional_info_key');
     $this->addFieldMapping('field_additional_info:second', 'field_additional_info_value');
@@ -257,12 +257,6 @@ abstract class MigrateDKAN extends Migration {
       }
     }
 
-    if (isset($row->groups)) {
-      foreach ($row->groups as $group) {
-        $row->group_ids[] = $this->getGroupId($group->id);
-      }
-    }
-
     // Get unix timestamp values for dates.
     $row->metadata_created = isset($row->metadata_created) ? strtotime($row->metadata_created) : '';
     $row->metadata_modified = isset($row->metadata_modified) ? strtotime($row->metadata_modified) : '';
@@ -288,6 +282,9 @@ abstract class MigrateDKAN extends Migration {
    */
   public function createAndMapGroups(&$row) {
     if (isset($row->groups)) {
+      if (!isset($row->group_ids)) {
+        $row->group_ids = array();
+      }
       foreach ($row->groups as $num => $group) {
         if ($group_nid = $this->getGroupId($group->id)) {
           $row->group_ids[] = $group_nid;
@@ -298,8 +295,10 @@ abstract class MigrateDKAN extends Migration {
           // rolled back that the resources are removed as well. This adds the
           // newly created uuids and nids to the migrate_map_data_json table.
           $this->map->saveIDMapping($group_node, array($group_node->nid), 0, 0, '');
+          $row->group_ids[] = $group_node->nid;
         }
       }
+      $row->group_ids = array_unique($row->group_ids);
     }
   }
 
