@@ -33,7 +33,7 @@ abstract class MigrateCkanResourcesBase extends MigrateCkanDatasetBase {
    */
   public function prepareRow($row) {
     // Migrate the resources for this dataset.
-    $this->migrateResources($row->name, $row->resources);
+    $this->migrateResources($row->id, $row->resources);
 
     // This method should return TRUE/FALSE (see http://www.drupalcontrib.org/api/drupal/contributions!migrate!includes!migration.inc/function/Migration::prepareRow/7)
     return parent::prepareRow($row);
@@ -56,7 +56,7 @@ abstract class MigrateCkanResourcesBase extends MigrateCkanDatasetBase {
     // Create a machine name by combining the dataset machine name with '_resources',
     // then create a file with that machine name, that will include a JSON representation
     // of the resources related to a dataset (provided as an argument to this function.
-    $machine_name = $this->machine_name . '_' . $name . '_resources';
+    $machine_name = $this->machine_name . '_' . str_replace('-', '_', $name) . '_resources';
     $filename     = "public://$machine_name";
 
     file_unmanaged_save_data(json_encode($resources), $filename, FILE_EXISTS_REPLACE);
