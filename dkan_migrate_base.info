@@ -8,5 +8,7 @@ dependencies[] = list
 dependencies[] = number
 files[] = dkan_migrate_base.migrate.inc
 files[] = dkan_migrate_base_group.inc
+files[] = dkan_migrate_base_organization.inc
 files[] = dkan_migrate_base_dataset.inc
 files[] = dkan_migrate_base_resource.inc
+files[] = dkan_migrate_base_resources.inc
