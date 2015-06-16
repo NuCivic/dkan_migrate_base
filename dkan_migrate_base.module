@@ -40,17 +40,31 @@ function dkan_migrate_base_create_resource_list_items($endpoint, $file_name) {
   $item_url = $endpoint . 'package_show?id=:id';
   $response = drupal_http_request($package_list);
   $json = $response->data;
-  $data = drupal_json_decode($json);
+  $data = json_decode($json, TRUE);
   foreach ($data['result'] as $id) {
     $dataset_show = preg_replace(array_fill(0, count($id), '/:id/'), $id, $item_url, 1);
-    $dataset_response = drupal_http_request($dataset_show);
-    $dataset_json = $dataset_response->data;
-    $dataset_data = drupal_json_decode($dataset_json);
-    $resources = $dataset_data['result']['resources'];
+    $resources = dkan_migrate_base_process_resource_list($dataset_show);
     foreach ($resources as $key => $resource) {
       $resource_ids['result'][] = $resource['id'];
     }
   }
   file_unmanaged_save_data(json_encode($resource_ids), $file_name, FILE_EXISTS_REPLACE);
   return $resource_ids;
+}
+
+/**
+ * Fetches resources from each dataset.
+ *
+ * @param $dataset_show string
+ *   Endpoint URL for the dataset.
+ *
+ * @return array
+ *   Resources attached to dataset.
+ */
+function dkan_migrate_base_process_resource_list($dataset_show) {
+  $dataset_response = drupal_http_request($dataset_show);
+  $dataset_json = $dataset_response->data;
+  $dataset_data = json_decode($dataset_json, TRUE);
+  $resources = $dataset_data['result']['resources'];
+  return $resources;
 }
