@@ -42,7 +42,6 @@ class MigrateCkanDatasetExample extends MigrateCkanBase {
     $fields = $this->getCkanDatasetFields();
 
     $arguments['endpoint'] = 'http://demo.getdkan.com/api/3/action/';
-    //$arguments['endpoint'] = 'http://hub.healthdata.gov/api/3/action/';
     $list_url = isset($arguments['list_url']) ? $arguments['list_url'] : 'package_list';
     $list_url = $arguments['endpoint'] . $list_url;
     $item_url = isset($arguments['item_url']) ? $arguments['item_url'] : 'package_show?id=:id';
@@ -86,7 +85,7 @@ class MigrateCkanResourcesExample extends MigrateCkanResourceBase {
    * Add endpoint.
    */
   public function __construct($arguments) {
-    $arguments['endpoint'] = 'http://hub.healthdata.gov/api/3/action/';
+    $arguments['endpoint'] = 'http://example.com/api/3/action/';
     parent::__construct($arguments);
   }
 
