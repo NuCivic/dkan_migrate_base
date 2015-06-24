@@ -39,6 +39,7 @@ class MigrateCkanResourceBase extends MigrateCkanBase {
     $item_url = isset($arguments['item_url']) ? $arguments['item_url'] : 'resource_show?id=:id';
     $this->page = isset($arguments['page']) ? $arguments['page'] : '';
     $this->offset = isset($arguments['offset']) ? $arguments['offset'] : '';
+    $this->ids = isset($arguments['ids']) ? $arguments['ids'] : '';
 
     if ($list_url == 'resource_list') {
       $file_name = 'public://ckan-migrate-resource_list_' . get_class($this);
@@ -55,12 +56,19 @@ class MigrateCkanResourceBase extends MigrateCkanBase {
       $list_url = file_create_url($file_name);
     }
 
-    $item_url = $this->endpoint . $item_url;
+    // Add endpoint for local file.
+    if (strpos('http://', $list_url) === TRUE) {
+      $list_url = $this->endpoint . $list_url;
+    }
+    if (strpos('http://', $item_url) !== TRUE) {
+      $item_url = $this->endpoint . $item_url;
+    }
 
     $this->source = new MigrateSourceList(new CKANListJSON(
       $list_url,
       array('page' => $this->page,
             'offset' => $this->offset,
+            'ids' => $this->ids,
       )
     ),
     new CKANItemJSON($item_url, $fields), $fields);

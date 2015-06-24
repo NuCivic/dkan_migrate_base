@@ -47,7 +47,9 @@ class CKANListJSON extends MigrateListJSON {
     $this->httpOptions = $http_options;
     $this->page = isset($http_options['page']) ? $http_options['page'] : '';
     $this->offset = isset($http_options['offset']) ? $http_options['offset'] : '';
+    $this->ids = isset($http_options['ids']) ? $http_options['ids'] : '';
   }
+
   /**
    * The default implementation assumes the IDs are top-level array elements.
    */
@@ -77,6 +79,9 @@ class CKANListJSON extends MigrateListJSON {
    */
   public function getIdList() {
     migrate_instrument_start("Retrieve $this->listUrl");
+    if ($this->ids) {
+      return $this->ids;
+    }
 
     if (substr($this->listUrl, 0, 6) == 'public') {
       $json = file_get_contents($this->listUrl);
@@ -101,6 +106,9 @@ class CKANListJSON extends MigrateListJSON {
    * Implements computeCount().
    */
   public function computeCount() {
+    if ($this->ids) {
+      return count($this->ids);
+    }
     $count = 0;
     if (empty($this->httpOptions)) {
       $json = file_get_contents($this->listUrl);
@@ -201,6 +209,293 @@ class CKANItemJSON extends MigrateItemJSON {
  * Put our useful functions here.
  */
 abstract class MigrateDKAN extends Migration {
+  /**
+   * Adds default dataset mappings.
+   */
+  public function addDefaultDatasetMappings() {
+    $this->addFieldMapping('title', 'title');
+    $this->addFieldMapping('field_license', 'license_title');
+    $this->addFieldMapping('created', 'metadata_created');
+    $this->addFieldMapping('changed', 'metadata_modified');
+    $this->addFieldMapping('field_author', 'author');
+    $this->addFieldMapping('field_contact_email', 'author_email');
+    $this->addFieldMapping('uid', 'uid');
+    $this->addFieldMapping('id', 'uuid');
+    $this->addFieldMapping('path', 'name');
+    $this->addFieldMapping('body', 'notes');
+    $this->addFieldMapping('field_spatial_geographical_cover', 'spatialText');
+    $this->addFieldMapping('field_spatial', 'spatial');
+    $this->addFieldMapping('field_resources', 'resource_ids');
+    // $this->addFieldMapping('og_group_ref', 'group_ids');
+    $this->addFieldMapping('field_tags', 'tag_names');
+    $this->addFieldMapping('field_additional_info', 'field_additional_info_key');
+    $this->addFieldMapping('field_additional_info:second', 'field_additional_info_value');
+  }
+
+  /**
+   * Prepare row for Datasets.
+   */
+  public function datasetPrepareRow(&$row) {
+    $row->uid = isset($row->creator_user_id) ? $this->getUser($row->creator_user_id) : 1;
+    $row->name = 'dataset/' . $row->name;
+    $row->resource_ids = array();
+    // If there is no revision timestamp an error is thrown as it is the
+    // highwater mark. Put in a low highwater mark instead.
+    $row->revision_timestamp = isset($row->revision_timestamp) ? $row->revision_timestamp : 0;
+
+    if (isset($row->resources)) {
+      foreach ($row->resources as $resource) {
+        $row->resource_ids[] = $this->getResourceId($resource->id);
+      }
+    }
+
+    $tags = taxonomy_vocabulary_machine_name_load('tags');
+    if (isset($row->tags)) {
+      foreach ($row->tags as $tag) {
+        $tag = $this->createTax($tag->name, 'tags', $tags->vid);
+        $row->tag_names[] = $tag->name;
+      }
+    }
+
+    // Get unix timestamp values for dates.
+    $row->metadata_created = isset($row->metadata_created) ? strtotime($row->metadata_created) : '';
+    $row->metadata_modified = isset($row->metadata_modified) ? strtotime($row->metadata_modified) : '';
+    $row->spatialText = NULL;
+    if (isset($row->extras)) {
+      foreach ($row->extras as $extra) {
+        if ($extra->key == 'spatial-text') {
+          $row->spatialText = $extra->value;
+        }
+        elseif ($extra->key == 'spatial') {
+          $row->spatial = $extra->value;
+        }
+        else {
+          $row->field_additional_info_key[] = substr($extra->key, 0, 254);
+          $row->field_additional_info_value[] = substr($extra->value, 0, 254);
+        }
+      }
+    }
+  }
+
+  /**
+   * Creates new Groups and adds it to the map.
+   */
+  public function createAndMapGroups(&$row) {
+    if (isset($row->groups)) {
+      if (!isset($row->group_ids)) {
+        $row->group_ids = array();
+      }
+      foreach ($row->groups as $num => $group) {
+        if ($group_nid = $this->getGroupId($group->id)) {
+          $row->group_ids[] = $group_nid;
+        }
+        else {
+          $group_node = $this->createGroupNode($group);
+          // Adds the node to the map. This means that when the migration is
+          // rolled back that the resources are removed as well. This adds the
+          // newly created uuids and nids to the migrate_map_data_json table.
+          $this->map->saveIDMapping($group_node, array($group_node->nid), 0, 0, '');
+          $row->group_ids[] = $group_node->nid;
+        }
+      }
+      $row->group_ids = array_unique($row->group_ids);
+    }
+  }
+
+  /**
+   * Creates new resources and adds it to the map.
+   */
+  public function createAndMapResources(&$row) {
+    if (isset($row->resources)) {
+      foreach ($row->resources as $num => $resource) {
+        // Node already exists.
+        if ($nid = $this->getResourceId($resource->id)) {
+          $resource_node = node_load($nid);
+        }
+        else {
+          $resource_node = $this->createResourceNode($resource);
+        }
+        // Adds the node to the map. This means that when the migration is
+        // rolled back that the resources are removed as well. This adds the
+        // newly created uuids and nids to the migrate_map_data_json table.
+        $this->map->saveIDMapping($resource_node, array($resource_node->nid), 0, 0, '');
+      }
+    }
+  }
+
+  /**
+   * Creates resource node.
+   */
+  public function createGroupNode($group) {
+    // TODO: Check high water mark.
+
+    global $user;
+    // This is necessary for group permissions. If there is not a properly
+    // permissioned user, ie if done from the command line, the group creation
+    // fails.
+    $user = user_load(1);
+    $node = new stdClass();
+    $node->is_new = TRUE;
+    $node->language = 'und';
+    $node->uid = $user->uid ? $user->uid : 1;
+    $node->type = 'group';
+    $node->title = $group->title;
+    $node->body['und'][0]['safe_value'] = $group->description;
+    if ($group->image_display_url) {
+      $name = explode('/', $group->image_display_url->url);
+      $name = $name[count($name) - 1];
+      $uri = 'public://' . $name;
+      $file = $this->downloadExternalFile($group->image_display_url, $uri);
+      $node->field_image['und'][0] = $file;
+    }
+    $node->uuid = $group->id;
+    node_save($node);
+    return $node;
+  }
+
+  public function createFormatTid($format) {
+    $format_vocab = taxonomy_vocabulary_machine_name_load('format');
+    $this->createTax($format, 'format', $format_vocab->vid);
+    $tax = taxonomy_get_term_by_name($format, 'format', $format_vocab->vid);
+    $tid = array_keys($tax);
+    return $tid[0];
+  }
+
+  /**
+   * Creates resource node.
+   */
+  public function createResourceNode($res) {
+
+    // TODO: Check high water mark.
+    // TODO: Check if UUID exits.
+
+    // Creates a new resource for every linked file.
+    // Linked files contain title, format, and accessURL.
+    global $user;
+    $node = new stdClass();
+    $node->is_new = TRUE;
+    $node->language = 'und';
+    $node->uid = $user->uid ? $user->uid : 1;
+    $node->type = 'resource';
+    $node->title = $res->name ? $res->name : $res->url;
+    $node->uuid = $res->id;
+    $node->body = $res->description;
+    $res->format = strtolower($res->format);
+    $node->changed = $res->created;
+    if (isset($res->format)) {
+      $node->field_format['und'][0]['tid'] = $this->createFormatTid($res->format);
+    }
+
+    // Create a link to file for certain formats.
+    if ($res->format == 'csv' || $res->format == 'zip') {
+      $file = remote_stream_wrapper_file_load_by_uri($res->url);
+      if (!$file) {
+        $req = drupal_http_request($res->url, array('timeout' => 5));
+        if ($req->code == 200) {
+          $mime = substr($req->headers['content-type'], 0, strpos($req->headers['content-type'], ";"));
+          if ($type = recline_get_data_type($mime)) {
+            $link_field = field_info_instance('node', 'field_link_remote_file', 'resource');
+            $ext = explode(' ', $link_field['settings']['file_extensions']);
+            if (in_array($type, $ext) && isset($req->headers['content-length'])
+              // html can be listed as a file type for the remote file field but
+              // shouldn't be imported.
+              && $type != 'html') {
+              $file = remote_stream_wrapper_file_create_by_uri($res->url);
+              $file->status = FALSE;
+              file_save($file);
+            }
+          }
+        }
+      }
+      if ($file) {
+        $node->field_link_remote_file['und'][0]['fid'] = $file->fid;
+        $node->field_link_remote_file['und'][0]['display'] = 1;
+      }
+    }
+    else {
+      $req = drupal_http_request($res->url, array('timeout' => 5));
+      if ($req->code == 200) {
+        $mime = substr($req->headers['content-type'], 0, strpos($req->headers['content-type'], ";"));
+        if ($type = recline_get_data_type($mime)) {
+          $node->field_format['und'][0]['tid'] = $this->createFormatTid($type);
+          $link_field = field_info_instance('node', 'field_link_remote_file', 'resource');
+          $ext = explode(' ', $link_field['settings']['file_extensions']);
+          // html can be listed as a file type for the remote file field but
+          // shouldn't be imported.
+          if (in_array($type, $ext) && isset($req->headers['content-length']) && $type != 'html') {
+            $file = remote_stream_wrapper_file_load_by_uri($res->url);
+            if (!$file) {
+              $file = remote_stream_wrapper_file_create_by_uri($res->url);
+              $file->status = FALSE;
+              if (isset($req->headers['content-disposition']) && $req->headers['content-disposition'] && $cd = explode( '; ', $req->headers['content-disposition'])) {
+                if (is_array($cd)) {
+                  foreach ($cd as $item) {
+                    if ($name =  str_replace('filename=', '',$item)) {
+                      $file->filename = $name;
+                    }
+                  }
+                }
+              }
+              file_save($file);
+            }
+            $node->field_link_remote_file['und'][0]['fid'] = $file->fid;
+            $node->field_link_remote_file['und'][0]['display'] = 1;
+          }
+        }
+      }
+    }
+    if (!isset($node->field_link_remote_file['und'][0]['fid'])) {
+      // Link to API for all others.
+      $node->field_link_api['und'][0]['url'] = $res->url;
+    }
+    node_save($node);
+    return $node;
+  }
+
+  /**
+   * Creates list of fields for CKAN Dataset.
+   */
+  public function getCkanDatasetFields() {
+    return array(
+      "license_title" => "License Title",
+      "maintainer" => "Maintaier",
+      "relationships_as_object" => "",
+      "private" => "Private",
+      "maintainer_email" => "",
+      "revision_timestamp" => "Revision Date",
+      "id" => "UUID",
+      "metadata_created" => "Created Date",
+      "metadata_modified" => "Modified Date",
+      "author" => "Author",
+      "author_email" => "Author Email",
+      "state" => "State",
+      "version" => "Version",
+      "creator_user_id" => "Author UUID",
+      "type" => "Node Type",
+      "resources" => "Resources",
+      "num_resources" => "Number of Resources",
+      "tag_names" => "Tags",
+      "tracking_summary" => "Tracking Summary",
+      "groups" => "Groups",
+      "license_id" => "Licence ID",
+      "relationships_as_subject" => "",
+      "num_tags" => "Number of Tags",
+      "organization" => "Organization",
+      "name" => "Name slug",
+      "isopen" => "Is Open (bollean)",
+      "url" => "URL",
+      "notes" => "Description",
+      "owner_org" => "Owner Organization",
+      "extras" => "Extras",
+      "title" => "Title",
+      "revision_id" => "Revision ID",
+      // This doesn't actually exist but we are adding it later in prepareRow.
+      "uid" => "User ID",
+      "resource_ids" => "Resource IDS",
+      "group_ids" => "Group IDS",
+    );
+  }
+
   /**
    * Looks up format if exists, if not creates it.
    */
