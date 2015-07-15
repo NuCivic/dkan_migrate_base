@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/NuCivic/dkan_migrate_base.svg?branch=7.x-1.x)](https://travis-ci.org/NuCivic/dkan_migrate_base)
+
 DKAN "Harvester" using Migrate module
 =================
 This provides base classes for common DKAN migrations (ie imports or harvests).
