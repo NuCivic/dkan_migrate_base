@@ -1,0 +1,123 @@
+{
+    "@context": "https://project-open-data.cio.gov/v1.1/schema/catalog.jsonld",
+    "@id": "http://example.com/data.json",
+    "@type": "dcat:Catalog",
+    "conformsTo": "https://project-open-data.cio.gov/v1.1/schema",
+    "describedBy": "https://project-open-data.cio.gov/v1.1/schema/catalog.json",
+    "dataset": [
+        {
+            "@type": "dcat:Dataset",
+            "contactPoint": {
+                "fn": "Bruce Wayne",
+                "hasEmail": "mailto:bruce@notbatman.com"
+            },
+            "distribution": [
+                {
+                    "@type": "dcat:Distribution",
+                    "downloadURL": "http://example.com/sites/default/files/grossrents_adj.txt",
+                    "mediaType": "text/plain",
+                    "format": "txt",
+                    "description": "No description provided"
+                },
+                {
+                    "@type": "dcat:Distribution",
+                    "downloadURL": "http://example.com/sites/default/files/grossrents_adj.csv",
+                    "mediaType": "text/csv",
+                    "format": "csv",
+                    "description": "No description provided"
+                }
+            ],
+            "identifier": "b6a4942e-fa73-4cbf-804f-1f9eea6d02df",
+            "keyword": [
+                "housing",
+                "rent"
+            ],
+            "language": [
+                "en"
+            ],
+            "license": "notspecified",
+            "modified": "2014-06-24",
+            "publisher": {
+                "@type": "org:Organization",
+                "name": "Housing"
+            },
+            "title": "Gross Rent over time",
+            "accessLevel": "public"
+        },
+        {
+            "@type": "dcat:Dataset",
+            "contactPoint": {
+                "fn": "admin",
+                "hasEmail": "mailto:"
+            },
+            "description": "The data that is used by the Hospital Compare tool can be downloaded for public use. This functionality is primarily used by health policy researchers and the media. The data provided includes process of care, mortality, and readmission quality measures. The collection period for the measures is generally 12 months. However, some measures may be based upon fewer than 12 months. Generally, the Hospital Compare quality measures are refreshed the third month of each quarter.",
+            "distribution": [
+                {
+                    "@type": "dcat:Distribution",
+                    "downloadURL": "http://example.com/sites/default/files/HQI_HOSP_AHRQ_NATIONAL.csv",
+                    "mediaType": "text/csv",
+                    "format": "csv",
+                    "description": "No description provided"
+                },
+                {
+                    "@type": "dcat:Distribution",
+                    "downloadURL": "http://example.com/sites/default/files/HQI_US_NATIONAL_MORTALITY_READM_RATE.csv",
+                    "mediaType": "text/csv",
+                    "format": "csv",
+                    "description": "No description provided"
+                },
+                {
+                    "@type": "dcat:Distribution",
+                    "downloadURL": "http://example.com/sites/default/files/HQI_HOSP_STRUCTURAL_XWLK.csv",
+                    "mediaType": "text/csv",
+                    "format": "csv",
+                    "description": "No description provided"
+                }
+            ],
+            "identifier": "2be7feb9-150f-4b7b-ac73-c9f337fc9341",
+            "keyword": [
+                "community",
+                "health",
+                "hospitals"
+            ],
+            "language": [
+                "en"
+            ],
+            "license": "odc-by",
+            "modified": "2014-06-24",
+            "publisher": {
+                "@type": "org:Organization",
+                "name": "Health"
+            },
+            "title": "Hospital Compare",
+            "accessLevel": "public"
+        },
+        {
+            "@type": "dcat:Dataset",
+            "contactPoint": {
+                "fn": "admin",
+                "hasEmail": "mailto:"
+            },
+            "distribution": [
+                {
+                    "@type": "dcat:Distribution",
+                    "downloadURL": "http://example.com/sites/default/files/values.csv",
+                    "mediaType": "text/csv",
+                    "format": "csv",
+                    "description": "No description provided"
+                }
+            ],
+            "identifier": "765bc983-a4f5-438a-bf3c-6e171c7cc15a",
+            "language": [
+                "en"
+            ],
+            "license": "cc-by",
+            "modified": "2014-06-23",
+            "publisher": {
+                "@type": "org:Organization"
+            },
+            "title": "NGA Scores",
+            "accessLevel": "public"
+        }
+    ]
+}
