@@ -30,6 +30,9 @@ before_script:
   - drush cc all --yes
 
   - cp -r /home/travis/build/NuCivic/dkan_migrate_base sites/all/modules/.
+  - cd sites/all/modules
+  - git clone https://github.com/NuCivic/open_data_federal_extras.git --branch full_pod
+  - drush en -y open_data_federal_extras
   - drush en -y dkan_migrate_base
   - drush en -y dkan_migrate_base_example
   - cd sites/all/modules/dkan_migrate_base

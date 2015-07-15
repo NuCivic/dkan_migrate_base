@@ -65,3 +65,28 @@ function dkan_migrate_base_create_resource_list_items($endpoint, $file_name) {
   file_unmanaged_save_data(json_encode($resource_ids), $file_name, FILE_EXISTS_REPLACE);
   return $resource_ids;
 }
+
+/**
+ * Converts ISO 8061 dates with internvals into Unix timestamps.
+ */
+function dkan_migrate_base_iso_interval_to_timestamp($date) {
+  $to = $from = NULL;
+  $date = explode("/", $date);
+  if ($date) {
+    $dateTime = new DateTime($date[0]);
+    $dateTime->format(DateTime::ISO8601);
+    $from = $dateTime-> getTimestamp();
+      if (isset($date[1])) {
+      if ($to = strtotime($date[1])) {
+      }
+      else {
+        $dateTime->add(new DateInterval($date[1]));
+        $to = $dateTime-> getTimestamp();
+      }
+    }
+  }
+  return array(
+    'to' => $to,
+    'from' => $from
+  );
+}
