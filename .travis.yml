@@ -1,7 +1,8 @@
 language: php
+sudo: false
 
 php:
-  - 5.4
+  - 5.5
 
 mysql:
   database: dkan_travis
@@ -9,10 +10,9 @@ mysql:
   encoding: utf8
 
 install:
+  - cd test
   - composer install
   - mysql -e 'create database dkan_travis;'
-  - sudo apt-get update > /dev/null
-  - sudo apt-get --quiet=2 install php5-cgi php5-curl php5-gd php5-mysql > /dev/null
 
   # Install latest Drush 7.
   - export PATH="$HOME/.composer/vendor/bin:$PATH"
@@ -30,9 +30,13 @@ before_script:
   - drush cc all --yes
 
   - cp -r /home/travis/build/NuCivic/dkan_migrate_base sites/all/modules/.
+  - cd sites/all/modules
+  - git clone https://github.com/NuCivic/open_data_federal_extras.git
+  - drush en -y open_data_federal_extras
   - drush en -y dkan_migrate_base
   - drush en -y dkan_migrate_base_example
-  - cd sites/all/modules/dkan_migrate_base
+  - cd dkan_migrate_base/test
+  - composer install
 
 script:
-  - bin/phpunit --bootstrap=test/boot.php test/DKANMigrateBaseTest.php
+  - bin/phpunit --bootstrap=boot.php DKANMigrateBaseTest.php
