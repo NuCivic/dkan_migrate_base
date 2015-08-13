@@ -90,3 +90,17 @@ function dkan_migrate_base_iso_interval_to_timestamp($date) {
     'from' => $from
   );
 }
+
+/**
+ * Implements hook_install().
+ */
+function dkan_migrate_base_add_modified_column() {
+  $modified = array(
+    'type' => 'varchar',
+    'length' => 32,
+    'not null' => TRUE,
+    'default' => '',
+    'description' => 'Field added by dkan_migrate_base',
+  );
+  db_add_field('migrate_map_dkan_harvest_data_json', 'modified', $modified);
+}
