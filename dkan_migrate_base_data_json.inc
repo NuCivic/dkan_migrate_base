@@ -13,11 +13,12 @@ class MigrateDataJsonDatasetBase extends MigrateDKAN {
    * Here we go.
    */
   public function __construct($arguments) {
-    if (!db_field_exists('migrate_map_dkan_harvest_data_json', 'modified')) {
-      dkan_migrate_base_add_modified_column();
+
+    if (!db_field_exists('migrate_map_' . $arguments['machine_name'], 'modified')) {
+      dkan_migrate_base_add_modified_column('migrate_map_' . $arguments['machine_name']);
     }
     parent::__construct($arguments);
-    $this->endpoint = isset($arguments['endpoint']) ? $arguments['endpoint'] : 'http://demo.getdkan.com/data.json';
+    $this->endpoint = isset($arguments['endpoint']) ? $arguments['endpoint'] : dirname(__FILE__) . '/modules/dkan_migrate_base_example/data/data11.json';
     $this->version = isset($arguments['version']) ? $arguments['version'] : '1.1';
     $this->page = isset($arguments['page']) ? $arguments['page'] : '';
     $this->offset = isset($arguments['offset']) ? $arguments['offset'] : '';
@@ -227,7 +228,7 @@ class MigrateDataJsonDatasetBase extends MigrateDKAN {
     )->fetchfield();
     if (is_numeric($existingUnmapped)) {
       $mapped = db_query(
-        'SELECT destid1 FROM {migrate_map_'. $table->machineName. '} WHERE sourceid1 = :uuid',
+        'SELECT destid1 FROM {migrate_map_'. $table->machineName . '} WHERE sourceid1 = :uuid',
         array(':uuid' => $row->uuid)
       )->fetchField();
       // Only update existing if it isn't already mapped.
@@ -349,7 +350,7 @@ class MigrateDataJsonDatasetBase extends MigrateDKAN {
     }
   }
 
-  public function prepareAdditionalInfo($row) {
+  public function prepareAdditionalInfo(&$row) {
     $ignore = array(
       '@type',
       'distribution',
@@ -361,6 +362,7 @@ class MigrateDataJsonDatasetBase extends MigrateDKAN {
       'contactPointName',
       'temporalBegin',
       'temporalEnd',
+      'resource',
       'publisher-name',
       'existing',
       'migrate_map_sourceid1',
@@ -374,7 +376,7 @@ class MigrateDataJsonDatasetBase extends MigrateDKAN {
     $row_keys = (array) $row;
     $row_keys = array_keys($row_keys);
     foreach ($row_keys as $key) {
-      if (!in_array($key, $mapped_fields) && !in_array($key, $ignore) && !$this->regexIgnore($key, $ignore)) {
+      if (!$this->regexContains($key, $ignore) && !$this->regexContains($key, $mapped_fields)) {
         if (is_object($row->{$key}) || is_array($row->$key)) {
           foreach ((array) $row->{$key} as $k => $v) {
             $k = $key . '-' . $k;
@@ -391,15 +393,15 @@ class MigrateDataJsonDatasetBase extends MigrateDKAN {
   }
 
   /**
-   * Returns TRUE if it is OK to ignore the $key value.
+   * Returns TRUE if $array contains a part of the $key value.
    */
-  public function regexIgnore($key, $ignore) {
-    foreach ($ignore as $ign) {
-      if (strpos($ign, $key) !== false) {
-        return FALSE;
+  public function regexContains($key, $array) {
+    foreach ($array as $ign) {
+      if (strpos($key, $ign) !== FALSE) {
+        return TRUE;
       }
     }
-    return TRUE;
+    return FALSE;
   }
 
   /**
@@ -449,7 +451,7 @@ class MigrateDataJsonDatasetBase extends MigrateDKAN {
   }
 
   public function processImport(array $options = array()) {
-    parent::processImport($options);
+    $result = parent::processImport($options);
     $table = $this->map->getMapTable();
     db_update($table)
       ->condition('modified', "", "=")
@@ -457,6 +459,7 @@ class MigrateDataJsonDatasetBase extends MigrateDKAN {
         'modified' => time()
       ))
       ->execute();
+    return $result;
   }
 
   /**
