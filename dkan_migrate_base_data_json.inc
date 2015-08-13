@@ -454,7 +454,7 @@ class MigrateDataJsonDatasetBase extends MigrateDKAN {
     $result = parent::processImport($options);
     $table = $this->map->getMapTable();
     // TODO: declare our own table so we can create upon install.
-    if (!db_field_exists('migrate_map_' . $table, 'modified')) {
+    if (db_field_exists('migrate_map_' . $table, 'modified')) {
       db_update($table)
         ->condition('modified', "", "=")
         ->fields(array(
