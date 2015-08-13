@@ -13,8 +13,7 @@ class MigrateDataJsonDatasetBase extends MigrateDKAN {
    * Here we go.
    */
   public function __construct($arguments) {
-    $table = $this->map->getMapTable();
-    if (!db_field_exists($table, 'modified')) {
+    if (!db_field_exists('migrate_map_dkan_harvest_data_json', 'modified')) {
       dkan_migrate_base_add_modified_column();
     }
     parent::__construct($arguments);
