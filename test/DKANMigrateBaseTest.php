@@ -95,7 +95,7 @@ class DKANMigrateBaseTest  extends PHPUnit_Framework_TestCase
       $this->nodeAssert($expect, $result);
     }
 
-    public function testCKANDatasetImport()
+    public function CKANDatasetImport()
     {
       $expected = $result = array();
       $this->migrate('dkan_migrate_base_example_ckan_dataset');
@@ -115,11 +115,13 @@ class DKANMigrateBaseTest  extends PHPUnit_Framework_TestCase
       $this->nodeAssert($expect, $result);
     }
 
-    public function testCKANDatasetRollback() {
-      $this->rollback('dkan_migrate_base_example_ckan_dataset');
+    public function testCKANDatasetRollback()
+    {
+      //$this->rollback('dkan_migrate_base_example_ckan_dataset');
     }
 
-    public function testCKANResourceRollback() {
+    public function testCKANResourceRollback()
+    {
       $this->rollback('dkan_migrate_base_example_ckan_resources');
     }
 
@@ -199,14 +201,14 @@ class DKANMigrateBaseTest  extends PHPUnit_Framework_TestCase
       $expect['additional2']  = "what";
 
       $result['resource1Name']  = $resource1->title;
-      $expect['resource1Name']  = "Gross Rent over time - txt";
+      $expect['resource1Name']  = "txt";
       $result['resource1Format']  = $format1->name;
       $expect['resource1Format']  = "txt";
       $result['resource1DownloadUrl']  = $resource1->field_link_api['und'][0]['url'];
       $expect['resource1DownloadUrl']  = "http://example.com/sites/default/files/grossrents_adj.txt";
 
       $result['resource2Name']  = $resource2->title;
-      $expect['resource2Name']  = "Gross Rent over time - csv";
+      $expect['resource2Name']  = "csv";
       $result['resource2Format']  = $format2->name;
       $expect['resource2Format']  = "csv";
       $result['resource2DownloadUrl']  = $resource2->field_link_api['und'][0]['url'];

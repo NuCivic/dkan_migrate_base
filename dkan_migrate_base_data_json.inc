@@ -13,8 +13,12 @@ class MigrateDataJsonDatasetBase extends MigrateDKAN {
    * Here we go.
    */
   public function __construct($arguments) {
+
+    if (!db_field_exists('migrate_map_' . $arguments['machine_name'], 'modified')) {
+      dkan_migrate_base_add_modified_column('migrate_map_' . $arguments['machine_name']);
+    }
     parent::__construct($arguments);
-    $this->endpoint = isset($arguments['endpoint']) ? $arguments['endpoint'] : 'http://demo.getdkan.com/data.json';
+    $this->endpoint = isset($arguments['endpoint']) ? $arguments['endpoint'] : dirname(__FILE__) . '/modules/dkan_migrate_base_example/data/data11.json';
     $this->version = isset($arguments['version']) ? $arguments['version'] : '1.1';
     $this->page = isset($arguments['page']) ? $arguments['page'] : '';
     $this->offset = isset($arguments['offset']) ? $arguments['offset'] : '';
@@ -190,23 +194,78 @@ class MigrateDataJsonDatasetBase extends MigrateDKAN {
   }
 
   /**
-   * Implements prepareRow.
+   * Updates custom highwater field "modified" which we've added to the
+   * migrate_map table.
    */
-  public function prepareRow($row) {
-    $existing = db_query(
-      'SELECT nid FROM {node} WHERE title = :title',
+  public function prepareCustomHighwater($row) {
+    $table = $this->map->getMapTable();
+    $modified = db_query(
+      'SELECT modified FROM {' . $table . '} WHERE sourceid1 = :identifier',
+      array(':identifier' => $row->identifier)
+    )->fetchfield();
+    // Update the highwater mark if modified is greater than previous.
+    if ($row->modified > $modified) {
+      db_update($table)
+        ->condition('sourceid1', $row->identifier, "=")
+        ->fields(array(
+          'modified' => strtotime($row->modified)
+        ))
+        ->execute();
+    }
+    // If the modified row is greater than the map we want to update.
+    if (strtotime($row->modified) > $row->migrate_map_modified) {
+      return TRUE;
+    }
+  }
+
+  /**
+   *
+   */
+  public function mapExisting($row) {
+    $existingUnmapped = db_query(
+      'select nid from {node} where title = :title',
       array(':title' => $row->title)
-    )->fetchField();
-    if (is_numeric($existing)) {
+    )->fetchfield();
+    if (is_numeric($existingUnmapped)) {
       $mapped = db_query(
-        'SELECT destid1 FROM {migrate_map_'. $this->machineName. '} WHERE sourceid1 = :uuid',
+        'SELECT destid1 FROM {migrate_map_'. $table->machineName . '} WHERE sourceid1 = :uuid',
         array(':uuid' => $row->uuid)
       )->fetchField();
       // Only update existing if it isn't already mapped.
       if (!$mapped) {
-        $row->existing = node_load($existing);
+        // TODO: add to map.
       }
     }
+  }
+
+  /**
+   *
+   */
+  public function loadExisting(&$row) {
+    $table = $this->map->getMapTable();
+    $existing = db_query(
+      'SELECT destid1 FROM {' . $table . '} WHERE sourceid1 = :identifier',
+      array(':identifier' => $row->identifier)
+    )->fetchfield();
+    if (is_numeric($existing)) {
+      $row->existing = node_load($existing);
+    }
+  }
+
+  /**
+   * Implements prepareRow.
+   */
+  public function prepareRow($row) {
+    // Only update if the modified row in the source is greater than the
+    // previous modified date.
+    if (!$this->prepareCustomHighwater($row)) {
+      return FALSE;
+    }
+
+    //$this->mapExisting($row);
+
+    $this->loadExisting($row);
+
     if (isset($row->temporal)) {
       $date = dkan_migrate_base_iso_interval_to_timestamp($row->temporal);
       if (isset($date['from'])) {
@@ -228,58 +287,70 @@ class MigrateDataJsonDatasetBase extends MigrateDKAN {
         $this->createTax($cat, 'odfe_theme', $category->vid);
       }
     }
-    if ($this->version == '1.0') {
+    if (is_array($row->publisher)) {
+      $row->publisher = (object) $row->publisher;
     }
-    else {
-      // POD 1.1.
-      if (isset($row->publisher->name) && !$row->group_id = $this->getGroupNidByTitle($row->publisher->name)) {
-        if ($row->publisher->name) {
-          $group = new stdClass;
-          $group->title = $row->publisher->name;
-          $group = $this->createGroupNode($group);
-          $this->map->saveIDMapping($group, array($group->nid), 0, 0, '');
-          $row->group_id = $group->nid;
-        }
+    if (isset($row->publisher->name) && !$row->group_id = $this->getGroupNidByTitle($row->publisher->name)) {
+      if ($row->publisher->name) {
+        $group = new stdClass;
+        $group->title = $row->publisher->name;
+        $group = $this->createGroupNode($group);
+        $this->map->saveIDMapping($group, array($group->nid), 0, 0, '');
+        $row->group_id = $group->nid;
       }
-      if (isset($row->theme) && is_array($row->theme)) {
-        $category = taxonomy_vocabulary_machine_name_load('odfe_theme');
-        foreach ($row->theme as $theme) {
-          $this->createTax($theme, 'odfe_theme', $category->vid);
-        }
+    }
+    if (isset($row->theme) && is_array($row->theme)) {
+      $category = taxonomy_vocabulary_machine_name_load('odfe_theme');
+      foreach ($row->theme as $theme) {
+        $this->createTax($theme, 'odfe_theme', $category->vid);
       }
-      if (is_array($row->contactPoint)
-        && $row->contactPoint['hasEmail']) {
-        $row->mbox = str_replace("mailto:", "", $row->contactPoint['hasEmail']) ? str_replace("mailto:", "", $row->contactPoint['hasEmail']) : $row->contactPoint['hasEmail'];
-        $row->contactPointName = isset($row->contactPoint['fn']) ? $row->contactPoint['fn'] : '';
-        // Must be a valid email address.
-        if (!filter_var($row->mbox, FILTER_VALIDATE_EMAIL)) {
-          $row->mbox = '';
-        }
+    }
+    if (is_array($row->contactPoint)) {
+      $row->contactPoint = (object) $row->contactPoint;
+    }
+    if (is_object($row->contactPoint)
+      && $row->contactPoint->hasEmail) {
+      $row->mbox = str_replace("mailto:", "", $row->contactPoint->hasEmail) ? str_replace("mailto:", "", $row->contactPoint->hasEmail) : $row->contactPoint->hasEmail;
+      $row->contactPointName = isset($row->contactPoint->fn) ? $row->contactPoint->fn : '';
+      if (!filter_var($row->mbox, FILTER_VALIDATE_EMAIL)) {
+        $row->mbox = '';
       }
-      elseif (is_object($row->contactPoint)
-        && $row->contactPoint->hasEmail) {
-        $row->mbox = str_replace("mailto:", "", $row->contactPoint->hasEmail) ? str_replace("mailto:", "", $row->contactPoint->hasEmail) : $row->contactPoint->hasEmail;
-        $row->contactPointName = isset($row->contactPoint->fn) ? $row->contactPoint->fn : '';
-        if (!filter_var($row->mbox, FILTER_VALIDATE_EMAIL)) {
-          $row->mbox = '';
-        }
+    }
+    if (isset($row->dataQuality)) {
+      if ($row->dataQuality === FALSE) {
+        $row->dataQuality = 'false';
       }
-      if (isset($row->dataQuality)) {
-        if ($row->dataQuality === FALSE) {
-          $row->dataQuality = 'false';
-        }
-        elseif ($row->dataQuality === TRUE) {
-          $row->dataQuality = 'true';
-        }
+      elseif ($row->dataQuality === TRUE) {
+        $row->dataQuality = 'true';
       }
-
+    }
+    if ($row->existing) {
+      $this->deleteExistingResources($row->existing);
     }
     $row->resources = $this->prepareResources($row);
     $this->prepareAdditionalInfo($row);
     $row->uid = 1;
   }
 
-  public function prepareAdditionalInfo($row) {
+  /**
+   *
+   */
+  public function deleteExistingResources($node) {
+    $table = $this->map->getMapTable();
+    if ($node->field_resources) {
+      foreach ($node->field_resources['und'] as $rid) {
+        $resource = node_load($rid['target_id']);
+        // Remove from the mapping.
+        db_delete($table)
+          ->condition('sourceid1', $resource->uuid)
+          ->execute();
+        // Remove from database;
+        node_delete($resource->nid);
+      }
+    }
+  }
+
+  public function prepareAdditionalInfo(&$row) {
     $ignore = array(
       '@type',
       'distribution',
@@ -291,6 +362,7 @@ class MigrateDataJsonDatasetBase extends MigrateDKAN {
       'contactPointName',
       'temporalBegin',
       'temporalEnd',
+      'resource',
       'publisher-name',
       'existing',
       'migrate_map_sourceid1',
@@ -304,7 +376,7 @@ class MigrateDataJsonDatasetBase extends MigrateDKAN {
     $row_keys = (array) $row;
     $row_keys = array_keys($row_keys);
     foreach ($row_keys as $key) {
-      if (!in_array($key, $mapped_fields) && !in_array($key, $ignore)) {
+      if (!$this->regexContains($key, $ignore) && !$this->regexContains($key, $mapped_fields)) {
         if (is_object($row->{$key}) || is_array($row->$key)) {
           foreach ((array) $row->{$key} as $k => $v) {
             $k = $key . '-' . $k;
@@ -321,50 +393,76 @@ class MigrateDataJsonDatasetBase extends MigrateDKAN {
   }
 
   /**
+   * Returns TRUE if $array contains a part of the $key value.
+   */
+  public function regexContains($key, $array) {
+    foreach ($array as $ign) {
+      if (strpos($key, $ign) !== FALSE) {
+        return TRUE;
+      }
+    }
+    return FALSE;
+  }
+
+  /**
    * Prepare Resources.
    */
   public function prepareResources($row) {
     $resources = array();
-    if ($row->existing && isset($row->existing->field_resources[LANGUAGE_NONE])) {
-      foreach ($row->existing->field_resources[LANGUAGE_NONE] as $resource) {
-        $resource = node_load($resource['target_id']);
-        // TODO: updateResourceNode($nid);
-        // 1. pre-check title
-        // 2. Loads existing node
-        // 3. Updates values.
-        // 4. Removes unused from mapping?
-        //
-        if (isset($resource->field_link_api[LANGUAGE_NONE]) && count($resource->field_link_api[LANGUAGE_NONE])) {
-          $url = $resource->field_link_api[LANGUAGE_NONE][0]['url'];
-          foreach ($row->distribution as $key => $new_resource) {
-            if ($new_resource['downloadURL'] == $url) {
-              unset($row->distribution[$key]);
-              $resources[] = $resource->nid;
-              $this->map->saveIDMapping($resource, array($resource->nid), 0, 0, '');
-            }
-          }
-        }
-      }
-    }
     if (isset($row->distribution)) {
       foreach ($row->distribution as $resource) {
         if (!is_array($resource)) {
           $resource = (array) $resource;
         }
         $res = new stdClass();
-        $res->name = isset($resource['name']) ? $resource['name'] : $row->title;
-        // Provide default for distribution items with absent name property.
-        if (isset($resource['mediaType']) && $res->name == $row->title) {
-          $res->format = recline_get_data_type($resource['mediaType']);
-          $res->name = $res->name . ' - ' . $res->format;
+        $res->format = $resource['format'];
+        // Use media type for format if no format provided.
+        if (is_null($res->format) && isset($resource['mediaType'])) {
+           include_once DRUPAL_ROOT . '/includes/file.mimetypes.inc';
+           $mapping = file_mimetype_mapping();
+           foreach ($mapping['mimetypes'] as $type_num => $type) {
+             if ($type == $resource['mediaType']) {
+               foreach ($mapping['extensions'] as $ex_type => $ex_num) {
+                 if ($type_num == $ex_num) {
+                   $res->format = $ex_type;
+                 }
+               }
+             }
+           }
         }
+        // If still null try to strip "application".
+        if (is_null($res->format) && isset($resource['mediaType']) && strpos($resource['mediaType'],'application') !== false) {
+          $res->format = str_replace('application/', '', $resource['mediaType']);
+        }
+        $res->name = isset($resource['title']) ? $resource['title'] : '';
+        // Provide default for distribution items with absent name property.
+        if ($res->format && !$res->name) {
+          $res->name = $res->format;
+        }
+        $res->name = $res->name ? $res->name : t('Resource');
         $res->url = $resource['downloadURL'];
-        $resource = $this->createResourceNode($res);
-        $resources[] = $resource->nid;
-        $this->map->saveIDMapping($resource, array($resource->nid), 0, 0, '');
+        $res->api = $resource['accessURL'];
+        $resource_node = $this->createResourceNode($res);
+        $this->map->saveIDMapping($resource_node, array($resource_node->nid), 0, 0, '');
+        $resources[] = $resource_node->nid;
       }
     }
     return $resources;
+  }
+
+  public function processImport(array $options = array()) {
+    $result = parent::processImport($options);
+    $table = $this->map->getMapTable();
+    if (!db_field_exists('migrate_map_' . $table, 'modified')) {
+      dkan_migrate_base_add_modified_column('migrate_map_' . $table);
+    }
+    db_update($table)
+      ->condition('modified', "", "=")
+      ->fields(array(
+        'modified' => time()
+      ))
+      ->execute();
+    return $result;
   }
 
   /**
@@ -374,9 +472,6 @@ class MigrateDataJsonDatasetBase extends MigrateDKAN {
     // Remove empy additional fields.
     if (isset($entity->field_additional_info['und'][0]) && $entity->field_additional_info['und'][0]['first'] == NULL) {
       unset($entity->field_additional_info);
-    }
-    if (isset($row->existing)) {
-      $entity->nid = $row->existing->nid;
     }
     if (isset($entity->field_temporal_coverage['und'][0]['value'])) {
       $entity->field_temporal_coverage['und'][0]['timezone'] = 'UTC';
