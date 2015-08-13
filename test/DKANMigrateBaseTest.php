@@ -117,7 +117,7 @@ class DKANMigrateBaseTest  extends PHPUnit_Framework_TestCase
 
     public function testCKANDatasetRollback()
     {
-      //$this->rollback('dkan_migrate_base_example_ckan_dataset');
+      $this->rollback('dkan_migrate_base_example_ckan_dataset');
     }
 
     public function testCKANResourceRollback()

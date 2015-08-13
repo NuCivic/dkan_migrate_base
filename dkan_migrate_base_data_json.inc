@@ -196,24 +196,32 @@ class MigrateDataJsonDatasetBase extends MigrateDKAN {
   /**
    * Updates custom highwater field "modified" which we've added to the
    * migrate_map table.
+   *
+   * @return
+   * Returns TRUE if we should create or update.
    */
   public function prepareCustomHighwater($row) {
     $table = $this->map->getMapTable();
-    $modified = db_query(
-      'SELECT modified FROM {' . $table . '} WHERE sourceid1 = :identifier',
-      array(':identifier' => $row->identifier)
-    )->fetchfield();
-    // Update the highwater mark if modified is greater than previous.
-    if ($row->modified > $modified) {
-      db_update($table)
-        ->condition('sourceid1', $row->identifier, "=")
-        ->fields(array(
-          'modified' => strtotime($row->modified)
-        ))
-        ->execute();
+    if (db_field_exists('migrate_map_' . $table, 'modified')) {
+      $modified = db_query(
+        'SELECT modified FROM {' . $table . '} WHERE sourceid1 = :identifier',
+        array(':identifier' => $row->identifier)
+      )->fetchfield();
+      // Update the highwater mark if modified is greater than previous.
+      if ($row->modified > $modified) {
+        db_update($table)
+          ->condition('sourceid1', $row->identifier, "=")
+          ->fields(array(
+            'modified' => strtotime($row->modified)
+          ))
+          ->execute();
+      }
+      // If the modified row is greater than the map we want to update.
+      if (strtotime($row->modified) > $row->migrate_map_modified) {
+        return TRUE;
+      }
     }
-    // If the modified row is greater than the map we want to update.
-    if (strtotime($row->modified) > $row->migrate_map_modified) {
+    else {
       return TRUE;
     }
   }
