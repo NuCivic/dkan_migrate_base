@@ -453,6 +453,9 @@ class MigrateDataJsonDatasetBase extends MigrateDKAN {
   public function processImport(array $options = array()) {
     $result = parent::processImport($options);
     $table = $this->map->getMapTable();
+    if (!db_field_exists('migrate_map_' . $table, 'modified')) {
+      dkan_migrate_base_add_modified_column('migrate_map_' . $table);
+    }
     db_update($table)
       ->condition('modified', "", "=")
       ->fields(array(
