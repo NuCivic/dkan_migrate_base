@@ -494,6 +494,10 @@ abstract class MigrateDKAN extends Migration {
       // Link to API for all others.
       $node->field_link_api['und'][0]['url'] = $res->url;
     }
+    if (isset($res->api) && $res->api) {
+      // Link to API for all others.
+      $node->field_link_api['und'][0]['url'] = $res->api;
+    }
     node_save($node);
     return $node;
   }
