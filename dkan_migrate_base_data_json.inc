@@ -332,12 +332,29 @@ class MigrateDataJsonDatasetBase extends MigrateDKAN {
         $row->dataQuality = 'true';
       }
     }
+    $this->deleteDuplicateDataSets($row);
     if ($row->existing) {
       $this->deleteExistingResources($row->existing);
     }
     $row->resources = $this->prepareResources($row);
     $this->prepareAdditionalInfo($row);
     $row->uid = 1;
+  }
+
+  /**
+   * Delete datasets with the same title as row.
+   */
+  public function deleteDuplicateDataSets($row) {
+    $query = db_select('node', 'n')
+      ->condition('title', $row->title)
+      ->condition('type', 'dataset')
+      ->fields('n', array('nid'));
+    if ($row->existing) {
+      $query->condition('nid', $row->existing->nid, '<>');
+    }
+    $nids = $query->execute()->fetchAllKeyed();
+
+    node_delete_multiple(array_keys($nids));
   }
 
   /**
