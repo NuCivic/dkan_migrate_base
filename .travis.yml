@@ -40,3 +40,4 @@ before_script:
 
 script:
   - bin/phpunit --bootstrap=boot.php DKANMigrateBaseTest.php
+  - bin/phpunit --bootstrap=boot.php DeleteDuplicateDatasetsTest.php
