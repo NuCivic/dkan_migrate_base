@@ -14,9 +14,6 @@ class MigrateDataJsonDatasetBase extends MigrateDKAN {
    */
   public function __construct($arguments) {
 
-    if (!db_field_exists('migrate_map_' . $arguments['machine_name'], 'modified')) {
-      dkan_migrate_base_add_modified_column('migrate_map_' . $arguments['machine_name']);
-    }
     parent::__construct($arguments);
     $this->endpoint = isset($arguments['endpoint']) ? $arguments['endpoint'] : dirname(__FILE__) . '/modules/dkan_migrate_base_example/data/data11.json';
     $this->version = isset($arguments['version']) ? $arguments['version'] : '1.1';
@@ -200,34 +197,28 @@ class MigrateDataJsonDatasetBase extends MigrateDKAN {
    * @return
    * Returns TRUE if we should create or update.
    */
-  public function prepareCustomHighwater($row) {
-    $table = $this->map->getMapTable();
-    if (db_field_exists('migrate_map_' . $table, 'modified')) {
-      $modified = db_query(
-        'SELECT modified FROM {' . $table . '} WHERE sourceid1 = :identifier',
-        array(':identifier' => $row->identifier)
-      )->fetchfield();
-      // Update the highwater mark if modified is greater than previous.
-      if ($row->modified > $modified) {
-        db_update($table)
-          ->condition('sourceid1', $row->identifier, "=")
-          ->fields(array(
-            'modified' => strtotime($row->modified)
-          ))
-          ->execute();
-      }
-      // If the modified row is greater than the map we want to update.
-      if (strtotime($row->modified) > $row->migrate_map_modified) {
-        return TRUE;
-      }
+  public function prepareCustomHighwater($row, $table) {
+    $query = 'SELECT modified FROM ' . $table . ' WHERE sourceid1 = :identifier';
+    $modified = db_query($query, array(':identifier' => $row->identifier))
+      ->fetchObject();
+
+    // Update the highwater mark if modified is greater than previous.
+    if ($modified && ($row->modified > $modified)) {
+      db_update($table)
+        ->condition('sourceid1', $row->identifier, "=")
+        ->fields(array(
+          'modified' => strtotime($row->modified)
+        ))
+        ->execute();
     }
-    else {
+    // If the modified row is greater than the map we want to update.
+    if (strtotime($row->modified) > $row->migrate_map_modified) {
       return TRUE;
     }
   }
 
   /**
-   *
+   * Adds existing nodes with the same title to map.
    */
   public function mapExisting($row) {
     $existingUnmapped = db_query(
@@ -247,7 +238,7 @@ class MigrateDataJsonDatasetBase extends MigrateDKAN {
   }
 
   /**
-   *
+   * Loads existing nodes for later inspection.
    */
   public function loadExisting(&$row) {
     $table = $this->map->getMapTable();
@@ -266,7 +257,8 @@ class MigrateDataJsonDatasetBase extends MigrateDKAN {
   public function prepareRow($row) {
     // Only update if the modified row in the source is greater than the
     // previous modified date.
-    if (!$this->prepareCustomHighwater($row)) {
+    
+    if (!$this->prepareCustomHighwater($row, $this->map->getMapTable())) {
       return FALSE;
     }
 
@@ -478,15 +470,13 @@ class MigrateDataJsonDatasetBase extends MigrateDKAN {
   public function processImport(array $options = array()) {
     $result = parent::processImport($options);
     $table = $this->map->getMapTable();
-    // TODO: declare our own table so we can create upon install.
-    if (db_field_exists('migrate_map_' . $table, 'modified')) {
-      db_update($table)
-        ->condition('modified', "", "=")
-        ->fields(array(
-          'modified' => time()
-        ))
-        ->execute();
-    }
+    db_update($table)
+      ->condition('modified', "", "=")
+      ->fields(array(
+        'modified' => time()
+      ))
+      ->execute();
+  
     return $result;
   }
 

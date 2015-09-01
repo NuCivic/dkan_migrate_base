@@ -5,6 +5,31 @@
  */
 
 /**
+ * Implements hook_install().
+ */
+function dkan_migrate_base_install() {
+  // Ensure that map table is present before adding modifed column.
+  $migration = new MigrateDataJsonDatasetBase(array(
+    'group_name' => 'dkan',
+    'title' => t('Data.json Dataset Base'),
+  ));
+  $map = new MigrateSQLMap(
+    $migration->machine_name,
+    array(
+      'uuid' => array(
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+        'description' => 'id',
+      ),
+    ),
+    MigrateDestinationNode::getKeySchema()
+  );
+  $table = $map->getMapTable();
+  dkan_migrate_base_add_modified_column($table);
+}
+
+/**
  * Implements hook_disable().
  */
 function dkan_migrate_base_disable() {
