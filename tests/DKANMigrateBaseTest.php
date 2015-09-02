@@ -64,8 +64,23 @@ class DKANMigrateBaseTest  extends PHPUnit_Framework_TestCase
     {
       // Run migration.
       $migration = Migration::getInstance($migrationName);
+      $map = new MigrateSQLMap(
+        $migrationName,
+        array(
+          'uuid' => array(
+            'type' => 'varchar',
+            'length' => 255,
+            'not null' => TRUE,
+            'description' => 'id',
+          ),
+        ),
+        MigrateDestinationNode::getKeySchema()
+      );
+      $table = $map->getMapTable();
+      dkan_migrate_base_add_modified_column($table);
+
       $result = $migration->processImport();
-      $this->assertEquals(Migration::RESULT_COMPLETED, $result);
+      $this->assertNotEquals($result, Migration::RESULT_FAILED);
       $this->assertEquals(0, $migration->errorCount());
     }
 
@@ -147,8 +162,8 @@ class DKANMigrateBaseTest  extends PHPUnit_Framework_TestCase
       $expect['id']  = "b6a4942e-fa73-4cbf-804f-1f9eea6d02df";
       $result['keyword1']  = $keyword1->name;
       $expect['keyword1']  = "housing";
-      $result['keyword1']  = $keyword2->name;
-      $expect['keyword1']  = "rent";
+      $result['keyword2']  = $keyword2->name;
+      $expect['keyword2']  = "rent";
       $result['group']  = $group->title;
       $expect['group']  = "Housing";
       $result['license']  = $node->field_license['und'][0]['value'];

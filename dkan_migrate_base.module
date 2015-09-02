@@ -92,17 +92,18 @@ function dkan_migrate_base_iso_interval_to_timestamp($date) {
 }
 
 /**
- * Implements hook_install().
+ * Adds a modfied temporal column to a migrate map table.
  */
 function dkan_migrate_base_add_modified_column($table) {
-  if (db_table_exists($table)) {
-    $modified = array(
-      'type' => 'varchar',
-      'length' => 32,
-      'not null' => TRUE,
-      'default' => '',
-      'description' => 'Field added by dkan_migrate_base',
-    );
-    db_add_field($table, 'modified', $modified);
+  $field = 'modified';
+  $field_schema = array(
+    'type' => 'varchar',
+    'length' => 32,
+    'not null' => TRUE,
+    'default' => '',
+    'description' => 'Field added by dkan_migrate_base',
+  );
+  if (db_table_exists($table) && !db_field_exists($table, $field)) {
+    db_add_field($table, $field, $field_schema);
   }
 }
