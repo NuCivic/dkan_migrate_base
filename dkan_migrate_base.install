@@ -8,13 +8,33 @@
  * Implements hook_install().
  */
 function dkan_migrate_base_install() {
-  // Ensure that map table is present before adding modifed column.
-  $migration = new MigrateDataJsonDatasetBase(array(
-    'group_name' => 'dkan',
-    'title' => t('Data.json Dataset Base'),
-  ));
+  $table = _dkan_migrate_base_data_json_table();
+  dkan_migrate_base_add_modified_column($table);
+}
+
+/**
+ * Implements hook_enable().
+ */
+function dkan_migrate_base_enable() {
+  dkan_migrate_base_migrations_enable();
+
+  $table = _dkan_migrate_base_data_json_table('datajson_dataset_base');
+  dkan_migrate_base_add_modified_column($table);
+}
+
+/**
+ * Implements hook_disable().
+ */
+function dkan_migrate_base_disable() {
+  dkan_migrate_base_migrations_disable();
+}
+
+/**
+ * Gets migration table name.
+ */
+function _dkan_migrate_base_data_json_table($migration) {
   $map = new MigrateSQLMap(
-    $migration->machine_name,
+    $migration,
     array(
       'uuid' => array(
         'type' => 'varchar',
@@ -25,13 +45,5 @@ function dkan_migrate_base_install() {
     ),
     MigrateDestinationNode::getKeySchema()
   );
-  $table = $map->getMapTable();
-  dkan_migrate_base_add_modified_column($table);
-}
-
-/**
- * Implements hook_disable().
- */
-function dkan_migrate_base_disable() {
-  dkan_migrate_base_migrations_disable();
+  return $map->getMapTable();
 }
