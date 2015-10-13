@@ -34,7 +34,7 @@ function dkan_migrate_base_disable() {
  */
 function _dkan_migrate_base_data_json_table($migration) {
   $map = new MigrateSQLMap(
-    'datajson_dataset_base',
+    $migration,
     array(
       'uuid' => array(
         'type' => 'varchar',
