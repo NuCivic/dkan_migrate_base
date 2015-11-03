@@ -299,12 +299,7 @@ class MigrateDataJsonDatasetBase extends MigrateDKAN {
         $row->group_id = $group->nid;
       }
     }
-    if (isset($row->theme) && is_array($row->theme)) {
-      $category = taxonomy_vocabulary_machine_name_load('odfe_theme');
-      foreach ($row->theme as $theme) {
-        $this->createTax($theme, 'odfe_theme', $category->vid);
-      }
-    }
+
     if (is_array($row->contactPoint)) {
       $row->contactPoint = (object) $row->contactPoint;
     }
