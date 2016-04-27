@@ -203,7 +203,10 @@ class MigrateDataJsonDatasetBase extends MigrateDKAN {
       ->fetchObject();
 
     // Update the highwater mark if modified is greater than previous.
-    if ($modified && ($row->modified > $modified)) {
+    if ($modified && isset($modified->modified)) {
+      $modified = (int) $modified->modified;
+    }
+    if ($modified && (strtotime($row->modified) > $modified)) {
       db_update($table)
         ->condition('sourceid1', $row->identifier, "=")
         ->fields(array(
@@ -212,9 +215,10 @@ class MigrateDataJsonDatasetBase extends MigrateDKAN {
         ->execute();
     }
     // If the modified row is greater than the map we want to update.
-    if (strtotime($row->modified) > $row->migrate_map_modified) {
+    if (strtotime($row->modified) > (int) $row->migrate_map_modified) {
       return TRUE;
     }
+    return FALSE;
   }
 
   /**
@@ -257,7 +261,6 @@ class MigrateDataJsonDatasetBase extends MigrateDKAN {
   public function prepareRow($row) {
     // Only update if the modified row in the source is greater than the
     // previous modified date.
-    
     if (!$this->prepareCustomHighwater($row, $this->map->getMapTable())) {
       return FALSE;
     }
