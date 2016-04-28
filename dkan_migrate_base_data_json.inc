@@ -199,20 +199,11 @@ class MigrateDataJsonDatasetBase extends MigrateDKAN {
    */
   public function prepareCustomHighwater($row, $table) {
     $query = 'SELECT modified FROM ' . $table . ' WHERE sourceid1 = :identifier';
-    $modified = db_query($query, array(':identifier' => $row->identifier))
+    $existingRecord = db_query($query, array(':identifier' => $row->identifier))
       ->fetchObject();
 
-    // Update the highwater mark if modified is greater than previous.
-    if ($modified && ($row->modified > $modified)) {
-      db_update($table)
-        ->condition('sourceid1', $row->identifier, "=")
-        ->fields(array(
-          'modified' => strtotime($row->modified)
-        ))
-        ->execute();
-    }
     // If the modified row is greater than the map we want to update.
-    if (strtotime($row->modified) > $row->migrate_map_modified) {
+    if (strtotime($row->modified) > strtotime($existingRecord->modified)) {
       return TRUE;
     }
   }
@@ -257,7 +248,6 @@ class MigrateDataJsonDatasetBase extends MigrateDKAN {
   public function prepareRow($row) {
     // Only update if the modified row in the source is greater than the
     // previous modified date.
-    
     if (!$this->prepareCustomHighwater($row, $this->map->getMapTable())) {
       return FALSE;
     }
@@ -462,17 +452,33 @@ class MigrateDataJsonDatasetBase extends MigrateDKAN {
     return $resources;
   }
 
-  public function processImport(array $options = array()) {
-    $result = parent::processImport($options);
+  public function updateHighwater($modified, $identifier, $nid) {
     $table = $this->map->getMapTable();
+    $query = 'SELECT destid1 FROM ' . $table . ' WHERE sourceid1 = :identifier';
+    $existingRecord = db_query($query, array(':identifier' => $identifier))
+      ->fetchObject();
+    if (!$existingRecord) {
+      db_insert($table)
+        ->fields(array(
+          'sourceid1' => $identifier,
+          'destid1' => $nid,
+          'modified' =>$modified,))
+      ->execute();
+    }
+
     db_update($table)
-      ->condition('modified', "", "=")
+      ->condition('sourceid1', $identifier, "=")
       ->fields(array(
-        'modified' => time()
+        'modified' => $modified
       ))
       ->execute();
-  
-    return $result;
+  }
+
+  /**
+   * Implements prepareRow.
+   */
+  public function complete($entity, $row) {
+    //$this->updateHighwater($row->modified, $row->identifier, $entity->nid);
   }
 
   /**
@@ -488,6 +494,7 @@ class MigrateDataJsonDatasetBase extends MigrateDKAN {
     }
     $entity->status = 1;
     $entity->vid = isset($entity->vid) ? $entity->vid : '';
+
   }
 }
 
