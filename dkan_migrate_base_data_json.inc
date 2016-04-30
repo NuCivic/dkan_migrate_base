@@ -444,7 +444,7 @@ class MigrateDataJsonDatasetBase extends MigrateDKAN {
    * Updates nodes to properly reflect created and updated dates from sources.
    */
   public function updateCreatedModified($nid, $created, $changed) {
-    if (is_numeric($nid)) {
+    if (is_numeric($nid) && is_numeric($created) && is_numeric($changed)) {
       db_query('UPDATE {node} SET created=:created, changed=:changed WHERE nid=:nid', array(':created'=>strtotime($created),':changed'=>strtotime($changed),':nid'=>$nid));
     }
   }
