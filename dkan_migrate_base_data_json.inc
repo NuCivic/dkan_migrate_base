@@ -294,7 +294,6 @@ class MigrateDataJsonDatasetBase extends MigrateDKAN {
         $row->dataQuality = 'true';
       }
     }
-    $this->deleteDuplicateDataSets($row);
     if ($row->existing) {
       $this->deleteExistingResources($row->existing);
     }
