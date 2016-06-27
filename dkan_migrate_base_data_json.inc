@@ -481,11 +481,13 @@ class MigrateDataJsonDatasetBase extends MigrateDKAN {
       }
     }
     $this->updateHighwater($row->modified, $row->identifier, $entity->nid);
+    if (module_exists('dkan_workflow')) {
     // Changing the moderation state of all harvested datasets to published.
     // Using the $entity object didn't work so loading the node was necessary.
-    $node = node_load($entity->nid);
-    workbench_moderation_moderate($node, "published");
-    node_save($node);
+      $node = node_load($entity->nid);
+      workbench_moderation_moderate($node, "published");
+      node_save($node);
+    }
   }
 
   /**
