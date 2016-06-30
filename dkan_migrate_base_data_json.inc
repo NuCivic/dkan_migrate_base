@@ -423,11 +423,22 @@ class MigrateDataJsonDatasetBase extends MigrateDKAN {
           $res->format = str_replace('application/', '', $resource['mediaType']);
         }
         $res->name = isset($resource['title']) ? $resource['title'] : '';
+
+        // When no format is provided then we try to guess it from
+        // the remote resource.
+        if(empty($res->format) && isset($resource['downloadURL'])) {
+          $url = $resource['downloadURL'];
+          $is_valid_url = !empty($url) && filter_var($url, FILTER_VALIDATE_URL);
+          $res->format = ($is_valid_url) ? $this->getRemoteMime($url) : '';
+          $res->format = recline_get_data_type($res->format);
+        }
+
         // Provide default for distribution items with absent name property.
         if ($res->format && !$res->name) {
           $res->name = $res->format;
         }
         $res->name = $res->name ? $res->name : t('Resource');
+
         $res->url = $resource['downloadURL'];
         $res->api = $resource['accessURL'];
         $resource_node = $this->createResourceNode($res);
@@ -437,6 +448,23 @@ class MigrateDataJsonDatasetBase extends MigrateDKAN {
       }
     }
     return $resources;
+  }
+
+  // We should pull out this from here to another
+  // more generic module. Thus we can reuse this
+  // function in several places.
+  public function getRemoteMime($url) {
+    $curl = curl_init();
+    curl_setopt($curl, CURLOPT_URL, $url);
+    curl_setopt($curl, CURLOPT_FILETIME, true);
+    curl_setopt($curl, CURLOPT_NOBODY, true);
+    curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($curl, CURLOPT_HEADER, true);
+    $header = curl_exec($curl);
+    $info = curl_getinfo($curl);
+    curl_close($curl);
+    $mime = explode(";", $info['content_type'])[0];
+    return strtolower($mime);
   }
 
   /**
