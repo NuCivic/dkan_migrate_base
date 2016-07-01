@@ -80,6 +80,7 @@ class DKANMigrateBaseTest  extends PHPUnit_Framework_TestCase
       dkan_migrate_base_add_modified_column($table);
 
       $result = $migration->processImport();
+
       $this->assertNotEquals($result, Migration::RESULT_FAILED);
       $this->assertEquals(0, $migration->errorCount());
     }
@@ -205,7 +206,7 @@ class DKANMigrateBaseTest  extends PHPUnit_Framework_TestCase
       $result['temporalEnd']  = $node->field_temporal_coverage['und'][0]['value2'];
       $expect['temporalEnd']  = "2010-01-15 00:06:00";
       $result['accrualPeriodicity']  = $node->field_frequency['und'][0]['value'];
-      $expect['accrualPeriodicity']  = "R/P1Y";
+      $expect['accrualPeriodicity']  = 3;
       $result['describedBy']  = $node->field_data_dictionary['und'][0]['value'];
       $expect['describedBy']  = "http://www.agency.gov/vegetables/definitions.pdf";
       $result['references']  = $node->field_related_content['und'][0]['url'];
@@ -226,9 +227,10 @@ class DKANMigrateBaseTest  extends PHPUnit_Framework_TestCase
       $expect['resource2Name']  = "csv";
       $result['resource2Format']  = $format2->name;
       $expect['resource2Format']  = "csv";
-      $result['resource2DownloadUrl']  = $resource2->field_link_api['und'][0]['url'];
-      $expect['resource2DownloadUrl']  = "http://example.com/sites/default/files/grossrents_adj.csv";
-
+      $result['resource2DownloadUrl']  = $resource2->field_link_remote_file['und'][0]['uri'];
+      $expect['resource2DownloadUrl']  = "http://demo.getdkan.com/sites/default/files/Polling_Places_Madison_0.csv";
+      $result['resource2AccessUrl']  = $resource2->field_link_api['und'][0]['url'];
+      $expect['resource2AccessUrl']  = "http://demo.getdkan.com/dataset/wisconsin-polling-places";
       // TODO:
       // maintainer
       // maintainer_email
