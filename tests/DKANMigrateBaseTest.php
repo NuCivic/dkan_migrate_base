@@ -227,9 +227,10 @@ class DKANMigrateBaseTest  extends PHPUnit_Framework_TestCase
       $expect['resource2Name']  = "csv";
       $result['resource2Format']  = $format2->name;
       $expect['resource2Format']  = "csv";
-      $result['resource2DownloadUrl']  = $resource2->field_link_api['und'][0]['url'];
-      $expect['resource2DownloadUrl']  = "http://example.com/sites/default/files/grossrents_adj.csv";
-
+      $result['resource2DownloadUrl']  = $resource2->field_link_remote_file['und'][0]['uri'];
+      $expect['resource2DownloadUrl']  = "http://demo.getdkan.com/sites/default/files/Polling_Places_Madison_0.csv";
+      $result['resource2AccessUrl']  = $resource2->field_link_api['und'][0]['url'];
+      $expect['resource2AccessUrl']  = "http://demo.getdkan.com/dataset/wisconsin-polling-places";
       // TODO:
       // maintainer
       // maintainer_email
