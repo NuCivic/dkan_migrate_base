@@ -13,7 +13,6 @@ class MigrateDataJsonDatasetBase extends MigrateDKAN {
    * Here we go.
    */
   public function __construct($arguments) {
-
     parent::__construct($arguments);
     $this->endpoint = isset($arguments['endpoint']) ? $arguments['endpoint'] : dirname(__FILE__) . '/modules/dkan_migrate_base_example/data/data11.json';
     $this->version = isset($arguments['version']) ? $arguments['version'] : '1.1';
@@ -300,6 +299,8 @@ class MigrateDataJsonDatasetBase extends MigrateDKAN {
     $row->resources = $this->prepareResources($row);
     $this->prepareAdditionalInfo($row);
     $row->uid = 1;
+    $row->accrualPeriodicity = dkan_dataset_content_types_iso2frequency($row->accrualPeriodicity);
+
   }
 
   /**
@@ -515,6 +516,7 @@ class MigrateDataJsonDatasetBase extends MigrateDKAN {
    * Implements prepareRow.
    */
   public function prepare($entity, $row) {
+    
     // Remove empy additional fields.
     if (isset($entity->field_additional_info['und'][0]) && $entity->field_additional_info['und'][0]['first'] == NULL) {
       unset($entity->field_additional_info);

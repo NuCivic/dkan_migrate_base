@@ -80,6 +80,7 @@ class DKANMigrateBaseTest  extends PHPUnit_Framework_TestCase
       dkan_migrate_base_add_modified_column($table);
 
       $result = $migration->processImport();
+
       $this->assertNotEquals($result, Migration::RESULT_FAILED);
       $this->assertEquals(0, $migration->errorCount());
     }
@@ -205,7 +206,7 @@ class DKANMigrateBaseTest  extends PHPUnit_Framework_TestCase
       $result['temporalEnd']  = $node->field_temporal_coverage['und'][0]['value2'];
       $expect['temporalEnd']  = "2010-01-15 00:06:00";
       $result['accrualPeriodicity']  = $node->field_frequency['und'][0]['value'];
-      $expect['accrualPeriodicity']  = "R/P1Y";
+      $expect['accrualPeriodicity']  = 3;
       $result['describedBy']  = $node->field_data_dictionary['und'][0]['value'];
       $expect['describedBy']  = "http://www.agency.gov/vegetables/definitions.pdf";
       $result['references']  = $node->field_related_content['und'][0]['url'];
