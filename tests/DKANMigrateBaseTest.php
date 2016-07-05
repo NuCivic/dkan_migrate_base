@@ -219,6 +219,10 @@ class DKANMigrateBaseTest  extends PHPUnit_Framework_TestCase
       if (module_exists('dkan_workflow')) {
         $result['moderationState']  = $node->workbench_moderation['current']->state;
         $expect['moderationState']  = "published";
+        $result['moderationStateResource1']  = $resource1->workbench_moderation['current']->state;
+        $expect['moderationStateResource1']  = "published";
+        $result['moderationStateResource2']  = $resource2->workbench_moderation['current']->state;
+        $expect['moderationStateResource2']  = "published";
       }
 
       $result['resource1Name']  = $resource1->title;
