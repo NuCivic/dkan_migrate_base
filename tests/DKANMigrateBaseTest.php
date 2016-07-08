@@ -140,6 +140,22 @@ class DKANMigrateBaseTest  extends PHPUnit_Framework_TestCase
     {
       $this->rollback('dkan_migrate_base_example_ckan_resources');
     }
+    
+    public function testDataJsonEndpoint() {
+      global $base_url;
+      $this->migrate('dkan_migrate_base_example_data_json11');
+      $expected = array(); 
+      $url = $base_url . '/data.json';
+      $response = drupal_http_request($url);
+      if($response->code != 200) throw new Exception('Request '.$url.' failed');
+      $datasets = json_decode($response->data)->dataset;
+      $dataset = array_filter($datasets,  function($d) {
+        return $d->title == 'Gross Rent over time';
+      })[0];
+      $expected['title'] = 'Gross Rent over time';
+      $expected['modified'] = '2014-06-24';
+      $this->nodeAssert($expect, $dataset);
+    }
 
     public function testDataJsonImport()
     {
