@@ -147,6 +147,7 @@ class DKANMigrateBaseTest  extends PHPUnit_Framework_TestCase
       $this->migrate('dkan_migrate_base_example_data_json11');
 
       $node = $this->getNodebyTitle('Gross Rent over time');
+
       $group = isset($node->og_group_ref['und'][0]['target_id']) ? node_load($node->og_group_ref['und'][0]['target_id']) : NULL;
       $keyword1 = taxonomy_term_load($node->field_tags['und'][0]['tid']);
       $keyword2 = taxonomy_term_load($node->field_tags['und'][1]['tid']);
@@ -169,7 +170,7 @@ class DKANMigrateBaseTest  extends PHPUnit_Framework_TestCase
       $expect['group']  = "Housing";
       $result['license']  = $node->field_license['und'][0]['value'];
       $expect['license']  = "notspecified";
-      $result['modified']  = date('m d y', $node->changed);
+      $result['modified']  = date_format(date_create($node->field_modified_source_date[LANGUAGE_NONE][0]['value']), 'm d y');
       $expect['modified']  = "06 24 14";
       $result['accessLevel']  = $node->field_public_access_level['und'][0]['value'];
       $expect['accessLevel']  = "public";
