@@ -14,12 +14,17 @@ class DKANMigrateBaseTestSetup
 
 class DKANMigrateBaseTest  extends PHPUnit_Framework_TestCase
 {
-
     public static function setUpBeforeClass()
     {
         $setup = new DKANMigrateBaseTestSetup();
         $setup->unpublishNodes('dataset');
         migrate_static_registration();
+        // Change /data.json path to /json during tests.
+        $data_json = open_data_schema_map_api_load('data_json_1_1');
+        $data_json->endpoint = 'json';
+        drupal_write_record('open_data_schema_map', $data_json, 'id');
+        drupal_static_reset('open_data_schema_map_api_load_all');
+        menu_rebuild();
     }
 
     public function getNodeByTitle($title) {
@@ -145,7 +150,7 @@ class DKANMigrateBaseTest  extends PHPUnit_Framework_TestCase
       global $base_url;
       $this->migrate('dkan_migrate_base_example_data_json11');
       $expected = array(); 
-      $url = $base_url . '/data.json';
+      $url = $base_url . '/json';
       $response = drupal_http_request($url);
       if($response->code != 200) throw new Exception('Request '.$url.' failed');
       $datasets = json_decode($response->data)->dataset;
