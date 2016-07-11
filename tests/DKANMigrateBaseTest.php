@@ -19,12 +19,16 @@ class DKANMigrateBaseTest  extends PHPUnit_Framework_TestCase
         $setup = new DKANMigrateBaseTestSetup();
         $setup->unpublishNodes('dataset');
         migrate_static_registration();
-        // Change /data.json path to /json during tests.
-        $data_json = open_data_schema_map_api_load('data_json_1_1');
-        $data_json->endpoint = 'json';
-        drupal_write_record('open_data_schema_map', $data_json, 'id');
-        drupal_static_reset('open_data_schema_map_api_load_all');
-        menu_rebuild();
+        self::setMigrationEndpointName('data_json_1_1', 'json');
+    }
+
+    public static function setMigrationEndpointName($api, $name) {
+      // Change /data.json path to /json during tests.
+      $data_json = open_data_schema_map_api_load($api);
+      $data_json->endpoint = $name;
+      drupal_write_record('open_data_schema_map', $data_json, 'id');
+      drupal_static_reset('open_data_schema_map_api_load_all');
+      menu_rebuild();
     }
 
     public function getNodeByTitle($title) {
@@ -263,6 +267,10 @@ class DKANMigrateBaseTest  extends PHPUnit_Framework_TestCase
 
     public function testDataJsonRollback() {
       $this->rollback('dkan_migrate_base_example_data_json11');
+    }
+    
+    public static function tearDownAfterClass() {
+      self::setMigrationEndpointName('data_json_1_1', 'data.json');
     }
 }
 
