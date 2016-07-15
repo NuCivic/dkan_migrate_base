@@ -22,6 +22,18 @@ class DKANMigrateBaseTest  extends PHPUnit_Framework_TestCase
         migrate_static_registration();
     }
 
+    public function createDummyGroup() {
+      $node = new stdClass();
+      $node->type = 'group';
+      $node->title = 'Health';
+      $node->language = LANGUAGE_NONE;
+      $node->status = 1;
+      node_object_prepare($node);
+      $node->uid = 1;
+      $node->body[$node->language][0]['value'] = 'Health Body';
+      node_save($node);
+    }
+
     public function getNodeByTitle($title) {
       $query = new EntityFieldQuery();
 
@@ -48,6 +60,9 @@ class DKANMigrateBaseTest  extends PHPUnit_Framework_TestCase
     {
       $migration = Migration::getInstance($migrationName);
       $result = $migration->processRollback();
+      $node = $this->getNodeByTitle('Health');
+      node_delete($node->nid);
+
       // Test rollback
       // TODO: DKAN comes with 4 resources. Remove first so count is 0.
       $rawnodes = node_load_multiple(FALSE, array('type' => 'dataset', 'status' => 1), TRUE);
@@ -89,7 +104,7 @@ class DKANMigrateBaseTest  extends PHPUnit_Framework_TestCase
       $expected = $result = array();
       $this->migrate('dkan_migrate_base_example_ckan_resources');
 
-      $node = $this->getNodebyTitle('Madison Polling Places Test');
+      $node = $this->getNodeByTitle('Madison Polling Places Test');
       $file = $node->field_link_remote_file['und'][0];
       $body = 
       '<p>This is a list and map of polling places in Madison, WI.</p>
@@ -115,7 +130,7 @@ class DKANMigrateBaseTest  extends PHPUnit_Framework_TestCase
       $expected = $result = array();
       $this->migrate('dkan_migrate_base_example_ckan_dataset');
 
-      $node = $this->getNodebyTitle('Wisconsin Polling Places Test');
+      $node = $this->getNodeByTitle('Wisconsin Polling Places Test');
 
       $result['title']    = $node->title;
       $expect['title']    = "Wisconsin Polling Places Test";
@@ -142,11 +157,15 @@ class DKANMigrateBaseTest  extends PHPUnit_Framework_TestCase
 
     public function testDataJsonImport()
     {
-      $expected = $result = array();
+      $expect = $result = array();
+
+      $this->createDummyGroup();
       $this->migrate('dkan_migrate_base_example_data_json11');
 
-      $node = $this->getNodebyTitle('Gross Rent over time');
+      $node = $this->getNodeByTitle('Gross Rent over time');
+      $node2 = $this->getNodeByTitle('Hospital Compare');
       $group = isset($node->og_group_ref['und'][0]['target_id']) ? node_load($node->og_group_ref['und'][0]['target_id']) : NULL;
+      $group2 = isset($node2->og_group_ref['und'][0]['target_id']) ? node_load($node2->og_group_ref['und'][0]['target_id']) : NULL;
       $keyword1 = taxonomy_term_load($node->field_tags['und'][0]['tid']);
       $keyword2 = taxonomy_term_load($node->field_tags['und'][1]['tid']);
       $resource1 = node_load($node->field_resources['und'][0]['target_id']);
@@ -229,12 +248,25 @@ class DKANMigrateBaseTest  extends PHPUnit_Framework_TestCase
       $result['resource2DownloadUrl']  = $resource2->field_link_api['und'][0]['url'];
       $expect['resource2DownloadUrl']  = "http://example.com/sites/default/files/grossrents_adj.csv";
 
+      $this->nodeAssert($expect, $result);
+
+      // Assert if a dataset is properly attached
+      // to an exising group. Health group is created
+      // by using createDummyGroup
+      $expect = $result = array();
+      $result['title'] = $node2->title;
+      $expect['title'] = 'Hospital Compare';
+      $result['group_name'] = $group2->title;
+      $expect['group_name'] = 'Health';
+      $result['body'] = $group2->body['und'][0]['value'];
+      $expect['body'] = 'Health Body';
+
+      $this->nodeAssert($expect, $result);
+
       // TODO:
       // maintainer
       // maintainer_email
       // licence_title
-
-      $this->nodeAssert($expect, $result);
     }
 
     public function testDataJsonRollback() {
