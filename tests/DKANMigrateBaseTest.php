@@ -22,6 +22,10 @@ class DKANMigrateBaseTest  extends PHPUnit_Framework_TestCase
         self::setMigrationEndpointName('data_json_1_1', 'json');
     }
 
+    public function setup() {
+      $g = $this->createDummyGroup();
+    }
+
     public static function setMigrationEndpointName($api, $name) {
       // Change /data.json path to /json during tests.
       $data_json = open_data_schema_map_api_load($api);
@@ -31,12 +35,11 @@ class DKANMigrateBaseTest  extends PHPUnit_Framework_TestCase
       menu_rebuild();
     }
     
-	public function createDummyGroup() {
+	  public function createDummyGroup() {
       $nodes = $this->getNodeByTitle('Health', TRUE);
       if($nodes) {
         node_delete_multiple(array_keys($nodes));
-      }
-
+      }   
       $node = new stdClass();
       $node->type = 'group';
       $node->title = 'Health';
@@ -171,26 +174,9 @@ class DKANMigrateBaseTest  extends PHPUnit_Framework_TestCase
       $this->rollback('dkan_migrate_base_example_ckan_resources');
     }
     
-    public function testDataJsonEndpoint() {
-      global $base_url;
-      $this->migrate('dkan_migrate_base_example_data_json11');
-      $expected = array(); 
-      $url = $base_url . '/json';
-      $response = drupal_http_request($url);
-      if($response->code != 200) throw new Exception('Request '.$url.' failed');
-      $datasets = json_decode($response->data)->dataset;
-      $dataset = array_filter($datasets,  function($d) {
-        return $d->title == 'Gross Rent over time';
-      })[0];
-      $expected['title'] = 'Gross Rent over time';
-      $expected['modified'] = '2014-06-24';
-      $this->nodeAssert($expect, $dataset);
-    }
-
     public function testDataJsonImport()
     {
       $expect = $result = array();
-
       $this->migrate('dkan_migrate_base_example_data_json11');
 
       $node = $this->getNodeByTitle('Gross Rent over time');
@@ -303,10 +289,26 @@ class DKANMigrateBaseTest  extends PHPUnit_Framework_TestCase
 
     }
 
-    public function testDataJsonRollback() {
+    public function testDataJsonEndpoint() {
+      global $base_url;
+      $this->migrate('dkan_migrate_base_example_data_json11');
+      $expected = array();
+      $url = $base_url . '/json';
+      $response = drupal_http_request($url);
+      if($response->code != 200) throw new Exception('Request '.$url.' failed');
+      $datasets = json_decode($response->data)->dataset;
+      $dataset = array_filter($datasets,  function($d) {
+        return $d->title == 'Gross Rent over time';
+      })[0];
+      $expected['title'] = 'Gross Rent over time';
+      $expected['modified'] = '2014-06-24';
+      $this->nodeAssert($expect, $dataset);
+    }
+
+    public function tearDown(){
       $this->rollback('dkan_migrate_base_example_data_json11');
     }
-    
+
     public static function tearDownAfterClass() {
       self::setMigrationEndpointName('data_json_1_1', 'data.json');
     }
