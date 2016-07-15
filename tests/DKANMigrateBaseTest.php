@@ -32,6 +32,11 @@ class DKANMigrateBaseTest  extends PHPUnit_Framework_TestCase
     }
     
 	public function createDummyGroup() {
+      $nodes = $this->getNodeByTitle('Health', TRUE);
+      if($nodes) {
+        node_delete_multiple(array_keys($nodes));
+      }
+
       $node = new stdClass();
       $node->type = 'group';
       $node->title = 'Health';
@@ -41,9 +46,10 @@ class DKANMigrateBaseTest  extends PHPUnit_Framework_TestCase
       $node->uid = 1;
       $node->body[$node->language][0]['value'] = 'Health Body';
       node_save($node);
+      return $node;
     }
 
-    public function getNodeByTitle($title) {
+    public function getNodeByTitle($title, $multiple = FALSE) {
       $query = new EntityFieldQuery();
 
        $entities = $query->entityCondition('entity_type', 'node')
@@ -52,7 +58,9 @@ class DKANMigrateBaseTest  extends PHPUnit_Framework_TestCase
         ->execute();
 
         if (!empty($entities['node'])) {
-          $node = node_load(array_shift(array_keys($entities['node'])));
+          $ids = array_keys($entities['node']);
+          $ids = (!$multiple) ? array_shift($ids) : $ids;
+          $node = (!$multiple) ? node_load($ids) : node_load_multiple($ids);
         }
         return $node;
     }
@@ -69,8 +77,6 @@ class DKANMigrateBaseTest  extends PHPUnit_Framework_TestCase
     {
       $migration = Migration::getInstance($migrationName);
       $result = $migration->processRollback();
-      $node = $this->getNodeByTitle('Health');
-      node_delete($node->nid);
 
       // Test rollback
       // TODO: DKAN comes with 4 resources. Remove first so count is 0.
@@ -185,7 +191,6 @@ class DKANMigrateBaseTest  extends PHPUnit_Framework_TestCase
     {
       $expect = $result = array();
 
-      $this->createDummyGroup();
       $this->migrate('dkan_migrate_base_example_data_json11');
 
       $node = $this->getNodeByTitle('Gross Rent over time');
