@@ -124,7 +124,8 @@ class DKANMigrateBaseTest  extends PHPUnit_Framework_TestCase
       $this->migrate('dkan_migrate_base_example_ckan_resources');
 
       $node = $this->getNodeByTitle('Madison Polling Places Test');
-      $file = $node->field_link_remote_file['und'][0];
+      $file = $node->field_upload['und'][0];
+      print_r($file);
       $body = 
       '<p>This is a list and map of polling places in Madison, WI.</p>
 
@@ -263,7 +264,7 @@ class DKANMigrateBaseTest  extends PHPUnit_Framework_TestCase
       $result['resource2Format']  = $format2->name;
       $expect['resource2Format']  = "csv";
       $result['resource2DownloadUrl']  = $resource2->field_link_remote_file['und'][0]['uri'];
-      $expect['resource2DownloadUrl']  = "http://demo.getdkan.com/sites/default/files/Polling_Places_Madison_0.csv";
+      $expect['resource2DownloadUrl']  = "https://s3.amazonaws.com/dkan-default-content-files/files/Polling_Places_Madison_0.csv";
       $result['resource2AccessUrl']  = $resource2->field_link_api['und'][0]['url'];
       $expect['resource2AccessUrl']  = "http://demo.getdkan.com/dataset/wisconsin-polling-places";
 
