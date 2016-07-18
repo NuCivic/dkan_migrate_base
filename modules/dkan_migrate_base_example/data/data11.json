@@ -134,7 +134,8 @@
             "license": "cc-by",
             "modified": "2014-06-23",
             "publisher": {
-                "@type": "org:Organization"
+                "@type": "org:Organization",
+                "name": "Health"
             },
             "title": "NGA Scores",
             "accessLevel": "public"
