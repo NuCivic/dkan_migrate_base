@@ -125,7 +125,6 @@ class DKANMigrateBaseTest  extends PHPUnit_Framework_TestCase
 
       $node = $this->getNodeByTitle('Madison Polling Places Test');
       $file = $node->field_upload['und'][0];
-      print_r($file);
       $body = 
       '<p>This is a list and map of polling places in Madison, WI.</p>
 
@@ -270,9 +269,11 @@ class DKANMigrateBaseTest  extends PHPUnit_Framework_TestCase
 
       $this->nodeAssert($expect, $result);
 
-      // Assert if a dataset is properly attached
-      // to an exising group. Health group is created
-      // by using createDummyGroup
+      // Group should be assigned to the Health group
+      // created during test setup instead of create 
+      // new one based in the incoming data.
+      
+      // Assert node is created and group Health is properly assigned
       $expect = $result = array();
       $result['title'] = $node2->title;
       $expect['title'] = 'Hospital Compare';
@@ -282,6 +283,9 @@ class DKANMigrateBaseTest  extends PHPUnit_Framework_TestCase
       $expect['body'] = 'Health Body';
 
       $this->nodeAssert($expect, $result);
+
+      // Check Health data is not duplicated.
+      $this->assertEquals(1, count($this->getNodeByTitle('Health', TRUE)));
 
       // TODO:
       // maintainer
