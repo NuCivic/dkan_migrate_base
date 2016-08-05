@@ -67,7 +67,7 @@ class MigrateDataJsonDatasetBase extends MigrateDKAN {
       'field_temporal_coverage:to' => 'temporalEnd',
       'field_frequency' => 'accrualPeriodicity',
       'field_data_dictionary' => 'describedBy',
-      'field_category' => 'theme',
+      'field_pod_theme' => 'theme',
       'field_is_part_of' => 'isPartOf',
       'field_data_dictionary_type' => 'describedByType',
       'field_landing_page' => 'landingPage',
