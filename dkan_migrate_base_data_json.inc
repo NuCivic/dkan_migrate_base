@@ -255,12 +255,6 @@ class MigrateDataJsonDatasetBase extends MigrateDKAN {
         $this->createTax($tag, 'tags', $tags->vid);
       }
     }
-    if (isset($row->theme) && module_exists('open_data_federal_extras')) {
-      $category = taxonomy_vocabulary_machine_name_load('odfe_theme');
-      foreach ($row->theme as $cat) {
-        $this->createTax($cat, 'odfe_theme', $category->vid);
-      }
-    }
     if (is_array($row->publisher)) {
       $row->publisher = (object) $row->publisher;
     }
