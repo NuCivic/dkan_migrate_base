@@ -18,8 +18,8 @@ function remote_mime($url) {
   $header = curl_exec($curl);
   $info = curl_getinfo($curl);
   curl_close($curl);
-  $mime = explode(";", $info['content_type'])[0];
-  return strtolower($mime);
+  $mimes = explode(";", $info['content_type']);
+  return strtolower($mimes[0]);
 }
 /**
  * Deregisters DKAN migrations.
