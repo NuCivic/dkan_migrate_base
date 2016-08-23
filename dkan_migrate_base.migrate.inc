@@ -438,8 +438,8 @@ abstract class MigrateDKAN extends Migration {
       if (!$file) {
         $req = drupal_http_request($res->url, array('timeout' => 5));
         if ($req->code == 200) {
-          $mime = explode(";", $req->headers['content-type'])[0];
-          if ($type = recline_get_data_type($mime)) {
+          $mimes = explode(";", $req->headers['content-type']);
+          if ($type = recline_get_data_type($mimes[0])) {
             $link_field = field_info_instance('node', 'field_link_remote_file', 'resource');
             $ext = explode(' ', $link_field['settings']['file_extensions']);
             if (in_array($type, $ext) && isset($req->headers['content-length'])
