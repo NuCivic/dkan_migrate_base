@@ -222,8 +222,8 @@ class DKANMigrateBaseTest  extends PHPUnit_Framework_TestCase
       $expect['dataStandard']  = "http://www.agency.gov/common-vegetable-analysis-model";
       $result['describedByType']  = $node->field_data_dictionary_type['und'][0]['value'];
       $expect['describedByType']  = "application/pdf";
-      $result['describedByType']  = $node->field_is_part_of['und'][0]['value'];
-      $expect['describedByType']  = "http://dx.doi.org/10.7927/H4PZ56R2";
+      $result['isPartOf']  = $node->field_is_part_of['und'][0]['value'];
+      $expect['isPartOf']  = "http://dx.doi.org/10.7927/H4PZ56R2";
       if (module_exists('open_data_federal_extras')) {
         $result['bureauCode']  = $node->field_odfe_bureau_code['und'][0]['value'];
         $expect['bureauCode']  = "010:86";
