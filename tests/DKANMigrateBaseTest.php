@@ -330,7 +330,7 @@ class DKANMigrateBaseTest  extends PHPUnit_Framework_TestCase
       // Second run should create 0 and update 0.
       $migration->getDestination()->resetStats();
       $migration->prepareUpdate();
-      $migration->processImport();
+      $migration = $this->migrate('dkan_migrate_base_example_data_json11');
       $this->assertEquals(0, $migration->errorCount());
       $this->assertEquals(0, $migration->getDestination()->getCreated());
       $this->assertEquals(0, $migration->getDestination()->getUpdated());
@@ -353,16 +353,15 @@ class DKANMigrateBaseTest  extends PHPUnit_Framework_TestCase
       $file = str_replace('2014-', '2016-', $file);
       file_unmanaged_save_data($file, $original_file, FILE_EXISTS_REPLACE);
       // Run migration again
-      $migration->getDestination()->resetStats();
-      $migration->prepareUpdate();
-      $migration->processImport();
+      drupal_static_reset('getInstance');
+      $migration = $this->migrate('dkan_migrate_base_example_data_json11');
       $this->assertEquals(0, $migration->errorCount());
       $this->assertEquals(0, $migration->getDestination()->getCreated());
       $this->assertGreaterThan(0, $migration->getDestination()->getUpdated());
       // Run Migration for the fourth time.
       $migration->getDestination()->resetStats();
       $migration->prepareUpdate();
-      $migration->processImport();
+      $migration = $this->migrate('dkan_migrate_base_example_data_json11');
       $this->assertEquals(0, $migration->errorCount());
       $this->assertEquals(0, $migration->getDestination()->getCreated());
       $this->assertEquals(0, $migration->getDestination()->getUpdated());
